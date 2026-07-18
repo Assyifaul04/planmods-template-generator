@@ -1,297 +1,232 @@
 // app/admin/users/roles/page.tsx
 "use client";
 
-import { Fragment, useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Shield,
-  ShieldCheck,
-  Users,
-  CircleUserRound,
-  Check,
-  Minus,
-  ArrowLeft,
-  LayoutGrid,
-  FolderKanban,
-  FileStack,
-  BarChart3,
-  Settings2,
-} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ArrowLeft, Shield, Users, Crown, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
-interface RoleStats {
-  totalUsers: number;
-  adminCount: number;
-  userCount: number;
+interface AdminUser {
+  id: string;
+  name: string | null;
+  email: string;
+  image: string | null;
+  createdAt: string;
+  _count: {
+    projects: number;
+    downloads: number;
+  };
 }
-
-interface Permission {
-  name: string;
-  admin: boolean;
-  user: boolean;
-}
-
-interface PermissionGroup {
-  label: string;
-  icon: typeof LayoutGrid;
-  permissions: Permission[];
-}
-
-const PERMISSION_GROUPS: PermissionGroup[] = [
-  {
-    label: "User Management",
-    icon: Users,
-    permissions: [
-      { name: "View Users", admin: true, user: false },
-      { name: "Create Users", admin: true, user: false },
-      { name: "Edit Users", admin: true, user: false },
-      { name: "Delete Users", admin: true, user: false },
-      { name: "Manage Roles", admin: true, user: false },
-    ],
-  },
-  {
-    label: "Projects",
-    icon: FolderKanban,
-    permissions: [
-      { name: "View Projects", admin: true, user: true },
-      { name: "Create Projects", admin: true, user: true },
-      { name: "Edit Projects", admin: true, user: true },
-      { name: "Delete Projects", admin: true, user: false },
-    ],
-  },
-  {
-    label: "Templates",
-    icon: FileStack,
-    permissions: [
-      { name: "View Templates", admin: true, user: true },
-      { name: "Create Templates", admin: true, user: false },
-      { name: "Delete Templates", admin: true, user: false },
-    ],
-  },
-  {
-    label: "System",
-    icon: Settings2,
-    permissions: [
-      { name: "View Analytics", admin: true, user: false },
-      { name: "Manage System Settings", admin: true, user: false },
-    ],
-  },
-];
 
 export default function RolesPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<RoleStats>({
-    totalUsers: 0,
-    adminCount: 0,
-    userCount: 0,
-  });
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [stats, setStats] = useState({ adminCount: 0, userCount: 0, totalUsers: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchRoleStats();
+    fetchRolesData();
   }, []);
 
-  const fetchRoleStats = async () => {
+  const fetchRolesData = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/users/roles/stats");
+      const response = await fetch("/api/admin/users/roles");
       const data = await response.json();
-      setStats(data);
+      setAdminUsers(data.adminUsers || []);
+      setStats({
+        adminCount: data.adminCount || 0,
+        userCount: data.userCount || 0,
+        totalUsers: data.totalUsers || 0,
+      });
     } catch (error) {
-      console.error("Error fetching role stats:", error);
-      toast.error("Failed to fetch role statistics");
+      console.error("Error fetching roles data:", error);
+      toast.error("Failed to fetch roles data");
     } finally {
       setLoading(false);
     }
   };
 
-  const adminShare = useMemo(() => {
-    if (!stats.totalUsers) return 0;
-    return Math.round((stats.adminCount / stats.totalUsers) * 100);
-  }, [stats]);
-
-  const statCards = [
-    {
-      label: "Total Users",
-      value: stats.totalUsers,
-      icon: Users,
-      accent: "text-white",
-      bg: "bg-white/5",
-      hint: "Across all roles",
-    },
-    {
-      label: "Admins",
-      value: stats.adminCount,
-      icon: ShieldCheck,
-      accent: "text-purple-300",
-      bg: "bg-purple-500/10",
-      hint: stats.totalUsers ? `${adminShare}% of all users` : undefined,
-    },
-    {
-      label: "Users",
-      value: stats.userCount,
-      icon: CircleUserRound,
-      accent: "text-white/70",
-      bg: "bg-white/5",
-      hint: "Standard access",
-    },
-  ];
+  const getInitials = (name: string | null) => {
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <div className="px-4 lg:px-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-semibold text-white tracking-tight">
-            Roles &amp; Permissions
-          </h2>
-          <p className="text-sm text-white/50 mt-1">
-            Manage user roles and see what each one can access
-          </p>
-        </div>
+      <div className="flex items-center gap-3 mb-6">
         <Button
+          variant="ghost"
+          size="sm"
           onClick={() => router.push("/admin/users")}
-          variant="outline"
-          className="border-white/10 text-white hover:bg-white/10"
+          className="text-white/60 hover:text-white hover:bg-white/10"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Users
+          Back
         </Button>
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        {statCards.map((s) => (
-          <Card key={s.label} className="border-white/10 bg-black/40 shadow-none">
-            <CardContent className="flex items-center justify-between p-4">
-              <div>
-                <p className="text-xs text-white/50">{s.label}</p>
-                <p className="text-2xl font-semibold text-white mt-1">
-                  {loading ? (
-                    <Skeleton className="h-7 w-12 bg-white/10" />
-                  ) : (
-                    s.value
-                  )}
-                </p>
-                {!loading && s.hint && (
-                  <p className="text-xs text-white/30 mt-0.5">{s.hint}</p>
-                )}
-              </div>
-              <div className={`rounded-full p-2.5 ${s.bg}`}>
-                <s.icon className={`h-4 w-4 ${s.accent}`} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Permissions matrix */}
-      <Card className="border-white/10 bg-black/40 shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-white">Role Permissions</CardTitle>
-            <CardDescription className="text-white/50">
-              What each role can see and do across the platform
-            </CardDescription>
-          </div>
-          <div className="hidden sm:flex items-center gap-2">
-            <Badge className="gap-1 bg-purple-500/15 text-purple-300 border-purple-500/30">
-              <ShieldCheck className="h-3 w-3" />
-              Admin
-            </Badge>
-            <Badge variant="outline" className="text-white/60 border-white/15">
-              User
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="rounded-xl border border-white/10 overflow-hidden">
-            <Table>
-              <TableHeader className="bg-white/[0.04]">
-                <TableRow className="border-white/10 hover:bg-transparent">
-                  <TableHead className="text-white/50 font-medium">
-                    Permission
-                  </TableHead>
-                  <TableHead className="text-white/50 font-medium text-center w-28">
-                    Admin
-                  </TableHead>
-                  <TableHead className="text-white/50 font-medium text-center w-28">
-                    User
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {PERMISSION_GROUPS.map((group) => (
-                  <Fragment key={group.label}>
-                    <TableRow
-                      className="border-white/10 bg-white/[0.02] hover:bg-white/[0.02]"
-                    >
-                      <TableCell colSpan={3} className="py-2">
-                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-white/40">
-                          <group.icon className="h-3.5 w-3.5" />
-                          {group.label}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                    {group.permissions.map((permission) => (
-                      <TableRow
-                        key={permission.name}
-                        className="border-white/10 hover:bg-white/[0.03] transition-colors"
-                      >
-                        <TableCell className="text-white/80 pl-8">
-                          {permission.name}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {permission.admin ? (
-                            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15">
-                              <Check className="h-3.5 w-3.5 text-emerald-400" />
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-white/5">
-                              <Minus className="h-3.5 w-3.5 text-white/25" />
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {permission.user ? (
-                            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15">
-                              <Check className="h-3.5 w-3.5 text-emerald-400" />
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-white/5">
-                              <Minus className="h-3.5 w-3.5 text-white/25" />
-                            </span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <p className="text-xs text-white/30 mt-3">
-            Permissions are fixed per role. To change what a user can do,
-            update their role from the Users page.
+        <div>
+          <h2 className="text-2xl font-semibold text-white">User Roles</h2>
+          <p className="text-sm text-white/60 mt-1">
+            Manage user roles and view role distribution
           </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card className="bg-black/40 border-white/10">
+          <CardHeader>
+            <CardTitle className="text-white text-sm font-medium">Total Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">{stats.totalUsers}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-black/40 border-white/10">
+          <CardHeader>
+            <CardTitle className="text-white text-sm font-medium">Admins</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-400">{stats.adminCount}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-black/40 border-white/10">
+          <CardHeader>
+            <CardTitle className="text-white text-sm font-medium">Regular Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white/60">{stats.userCount}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="bg-black/40 border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white">Admin Users</CardTitle>
+          <CardDescription className="text-white/60">
+            All users with administrator privileges
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader className="bg-white/5">
+              <TableRow className="border-white/10">
+                <TableHead className="text-white/60">User</TableHead>
+                <TableHead className="text-white/60">Email</TableHead>
+                <TableHead className="text-white/60">Projects</TableHead>
+                <TableHead className="text-white/60">Downloads</TableHead>
+                <TableHead className="text-white/60">Joined</TableHead>
+                <TableHead className="text-white/60">Role</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-white/40">
+                    Loading admin users...
+                  </TableCell>
+                </TableRow>
+              ) : adminUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-white/40">
+                    No admin users found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                adminUsers.map((user) => (
+                  <TableRow key={user.id} className="border-white/10">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user.image || undefined} />
+                          <AvatarFallback className="bg-white/10 text-white text-xs">
+                            {getInitials(user.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-white">{user.name || "Unknown"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-white/60">{user.email}</TableCell>
+                    <TableCell className="text-white/60">{user._count.projects}</TableCell>
+                    <TableCell className="text-white/60">{user._count.downloads}</TableCell>
+                    <TableCell className="text-white/40 text-sm">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+                        <Shield className="h-3 w-3 mr-1" />
+                        Admin
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-black/40 border-white/10 mt-6">
+        <CardHeader>
+          <CardTitle className="text-white">Role Permissions</CardTitle>
+          <CardDescription className="text-white/60">
+            Overview of permissions granted to each role
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader className="bg-white/5">
+              <TableRow className="border-white/10">
+                <TableHead className="text-white/60">Permission</TableHead>
+                <TableHead className="text-white/60 text-center">Admin</TableHead>
+                <TableHead className="text-white/60 text-center">User</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[
+                { name: "View Users", admin: true, user: false },
+                { name: "Create/Edit Users", admin: true, user: false },
+                { name: "Delete Users", admin: true, user: false },
+                { name: "Manage Roles", admin: true, user: false },
+                { name: "Manage Plans", admin: true, user: false },
+                { name: "View Projects", admin: true, user: true },
+                { name: "Create Projects", admin: true, user: true },
+                { name: "Edit Projects", admin: true, user: true },
+                { name: "Delete Projects", admin: true, user: false },
+                { name: "View Templates", admin: true, user: true },
+                { name: "Manage Templates", admin: true, user: false },
+                { name: "View Analytics", admin: true, user: false },
+                { name: "Manage System Settings", admin: true, user: false },
+              ].map((permission) => (
+                <TableRow key={permission.name} className="border-white/10">
+                  <TableCell className="text-white">{permission.name}</TableCell>
+                  <TableCell className="text-center">
+                    {permission.admin ? (
+                      <Check className="h-4 w-4 text-green-400 inline" />
+                    ) : (
+                      <X className="h-4 w-4 text-red-400 inline" />
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {permission.user ? (
+                      <Check className="h-4 w-4 text-green-400 inline" />
+                    ) : (
+                      <X className="h-4 w-4 text-red-400 inline" />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

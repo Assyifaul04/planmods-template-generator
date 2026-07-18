@@ -33,8 +33,8 @@ import {
   ChevronRight,
   Save,
   X,
-  ArrowLeft,
   Hash,
+  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import slugify from "slugify";
@@ -206,32 +206,28 @@ export default function TemplateTagsPage() {
 
   return (
     <div className="px-4 lg:px-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center gap-3 mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/admin/templates")}
+          className="text-white/60 hover:text-white hover:bg-white/10"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
         <div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/admin/templates")}
-              className="text-white/60 hover:text-white hover:bg-white/10"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-            <div>
-              <h2 className="text-2xl font-semibold text-white">Template Tags</h2>
-              <p className="text-sm text-white/60 mt-1">
-                Manage tags used for categorizing templates
-              </p>
-            </div>
-          </div>
+          <h2 className="text-2xl font-semibold text-white">Tags Management</h2>
+          <p className="text-sm text-white/60 mt-1">
+            Manage tags used for categorizing templates
+          </p>
         </div>
         <Button
           onClick={() => {
             setFormData({ name: "", slug: "" });
             setShowCreateDialog(true);
           }}
-          className="bg-white/10 hover:bg-white/20 text-white"
+          className="ml-auto bg-white text-black hover:bg-white/90"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Tag
@@ -271,14 +267,13 @@ export default function TemplateTagsPage() {
           </div>
         </div>
         <div className="rounded-lg border border-white/10 bg-black/40 p-4">
-          <div className="text-sm text-white/40">Average Tags per Template</div>
+          <div className="text-sm text-white/40">Avg Tags per Template</div>
           <div className="text-2xl font-bold text-white">
             {tags.length > 0 ? (tags.reduce((acc, tag) => acc + tag._count.templates, 0) / tags.length).toFixed(1) : "0"}
           </div>
         </div>
       </div>
 
-      {/* Tags Table */}
       <div className="rounded-lg border border-white/10 bg-black/40 overflow-hidden">
         <Table>
           <TableHeader className="bg-white/5">
@@ -375,11 +370,8 @@ export default function TemplateTagsPage() {
         </Table>
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-white/40">
-          Page {page} of {totalPages}
-        </div>
+        <div className="text-sm text-white/40">Page {page} of {totalPages}</div>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -438,19 +430,10 @@ export default function TemplateTagsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowCreateDialog(false)}
-                className="border-white/10 text-white hover:bg-white/10"
-              >
+              <Button variant="outline" onClick={() => setShowCreateDialog(false)} className="border-white/10 text-white hover:bg-white/10">
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="bg-white text-black hover:bg-white/90"
-              >
+              <Button type="submit" disabled={submitting} className="bg-white text-black hover:bg-white/90">
                 {submitting ? (
                   <>
                     <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-black/20 border-t-black/60" />
@@ -503,19 +486,10 @@ export default function TemplateTagsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowEditDialog(false)}
-                className="border-white/10 text-white hover:bg-white/10"
-              >
+              <Button variant="outline" onClick={() => setShowEditDialog(false)} className="border-white/10 text-white hover:bg-white/10">
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="bg-white text-black hover:bg-white/90"
-              >
+              <Button type="submit" disabled={submitting} className="bg-white text-black hover:bg-white/90">
                 {submitting ? (
                   <>
                     <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-black/20 border-t-black/60" />
@@ -575,10 +549,7 @@ export default function TemplateTagsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button
-              onClick={() => setShowViewDialog(false)}
-              className="bg-white/10 hover:bg-white/20 text-white"
-            >
+            <Button onClick={() => setShowViewDialog(false)} className="bg-white/10 hover:bg-white/20 text-white">
               Close
             </Button>
           </DialogFooter>
@@ -601,18 +572,10 @@ export default function TemplateTagsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              className="border-white/10 text-white hover:bg-white/10"
-            >
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-white/10 text-white hover:bg-white/10">
               Cancel
             </Button>
-            <Button
-              onClick={handleDeleteTag}
-              disabled={submitting}
-              className="bg-red-500 hover:bg-red-600"
-            >
+            <Button onClick={handleDeleteTag} disabled={submitting} className="bg-red-500 hover:bg-red-600">
               {submitting ? (
                 <>
                   <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />

@@ -46,10 +46,12 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  FolderOpen,
+  FolderIcon,
   Globe,
   Lock,
   Users,
+  GitBranch,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,6 +62,7 @@ interface Project {
   description: string | null;
   platform: "JAVA" | "BEDROCK";
   loader: string;
+  minecraftVersion: string;
   status: "DRAFT" | "GENERATING" | "READY" | "FAILED" | "ARCHIVED";
   visibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
   version: string;
@@ -71,15 +74,28 @@ interface Project {
     name: string | null;
     email: string;
     image: string | null;
+    username: string | null;
   };
   template: {
     id: string;
     name: string;
+    slug: string;
+  } | null;
+  mcVersionData: {
+    version: string;
+    platform: string;
+  } | null;
+  githubRepository: {
+    id: string;
+    repositoryName: string;
+    repositoryUrl: string;
+    private: boolean;
   } | null;
   _count: {
     downloads: number;
     stars: number;
     builds: number;
+    collaborators: number;
   };
 }
 
@@ -213,13 +229,12 @@ export default function ProjectsPage() {
             onClick={() => router.push("/admin/projects/status")}
             className="bg-white/10 hover:bg-white/20 text-white"
           >
-            <FolderOpen className="h-4 w-4 mr-2" />
+            <FolderIcon className="h-4 w-4 mr-2" />
             View Status
           </Button>
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-4 mb-6">
         <div className="flex-1 min-w-[200px] relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
@@ -230,9 +245,9 @@ export default function ProjectsPage() {
             className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40"
           />
         </div>
-        
+
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[150px] bg-white/5 border-white/10 text-white">
+          <SelectTrigger className="w-[130px] bg-white/5 border-white/10 text-white">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent className="bg-black border-white/10 text-white">
@@ -246,7 +261,7 @@ export default function ProjectsPage() {
         </Select>
 
         <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
-          <SelectTrigger className="w-[150px] bg-white/5 border-white/10 text-white">
+          <SelectTrigger className="w-[130px] bg-white/5 border-white/10 text-white">
             <SelectValue placeholder="All Visibility" />
           </SelectTrigger>
           <SelectContent className="bg-black border-white/10 text-white">
@@ -258,7 +273,7 @@ export default function ProjectsPage() {
         </Select>
 
         <Select value={platformFilter} onValueChange={setPlatformFilter}>
-          <SelectTrigger className="w-[150px] bg-white/5 border-white/10 text-white">
+          <SelectTrigger className="w-[130px] bg-white/5 border-white/10 text-white">
             <SelectValue placeholder="All Platforms" />
           </SelectTrigger>
           <SelectContent className="bg-black border-white/10 text-white">
@@ -278,7 +293,6 @@ export default function ProjectsPage() {
         </Button>
       </div>
 
-      {/* Projects Table */}
       <div className="rounded-lg border border-white/10 bg-black/40 overflow-hidden">
         <Table>
           <TableHeader className="bg-white/5">
@@ -286,10 +300,10 @@ export default function ProjectsPage() {
               <TableHead className="text-white/60 font-medium">Project</TableHead>
               <TableHead className="text-white/60 font-medium">Owner</TableHead>
               <TableHead className="text-white/60 font-medium">Platform</TableHead>
+              <TableHead className="text-white/60 font-medium">MC Version</TableHead>
               <TableHead className="text-white/60 font-medium">Status</TableHead>
               <TableHead className="text-white/60 font-medium">Visibility</TableHead>
               <TableHead className="text-white/60 font-medium">Stats</TableHead>
-              <TableHead className="text-white/60 font-medium">Created</TableHead>
               <TableHead className="text-white/60 font-medium text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -317,7 +331,9 @@ export default function ProjectsPage() {
                       <div className="text-white font-medium">{project.name}</div>
                       <div className="text-xs text-white/40">{project.slug}</div>
                       {project.template && (
-                        <div className="text-xs text-white/30">Template: {project.template.name}</div>
+                        <div className="text-xs text-white/30">
+                          Template: {project.template.name}
+                        </div>
                       )}
                     </div>
                   </TableCell>
@@ -341,6 +357,9 @@ export default function ProjectsPage() {
                     </Badge>
                     <div className="text-xs text-white/30 mt-1">{project.loader}</div>
                   </TableCell>
+                  <TableCell className="text-white/60 text-sm">
+                    {project.minecraftVersion}
+                  </TableCell>
                   <TableCell>{getStatusBadge(project.status)}</TableCell>
                   <TableCell>{getVisibilityBadge(project.visibility)}</TableCell>
                   <TableCell>
@@ -348,10 +367,8 @@ export default function ProjectsPage() {
                       <div>⭐ {project.starsCount}</div>
                       <div>📥 {project.downloadsCount}</div>
                       <div>🔨 {project._count.builds}</div>
+                      <div>👥 {project._count.collaborators}</div>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-white/40 text-sm">
-                    {new Date(project.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -375,6 +392,22 @@ export default function ProjectsPage() {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/admin/projects/${project.id}/collaborators`)}
+                          className="hover:bg-white/10 cursor-pointer"
+                        >
+                          <Users className="h-4 w-4 mr-2" />
+                          Collaborators
+                        </DropdownMenuItem>
+                        {project.githubRepository && (
+                          <DropdownMenuItem
+                            onClick={() => window.open(project.githubRepository?.repositoryUrl, "_blank")}
+                            className="hover:bg-white/10 cursor-pointer"
+                          >
+                            <GitBranch className="h-4 w-4 mr-2" />
+                            GitHub Repo
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                           onClick={() => {
                             setSelectedProject(project);
@@ -405,11 +438,8 @@ export default function ProjectsPage() {
         </Table>
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-white/40">
-          Page {page} of {totalPages}
-        </div>
+        <div className="text-sm text-white/40">Page {page} of {totalPages}</div>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -432,7 +462,6 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* Delete Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="bg-black border-white/10 text-white">
           <DialogHeader>
@@ -443,41 +472,27 @@ export default function ProjectsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              className="border-white/10 text-white hover:bg-white/10"
-            >
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-white/10 text-white hover:bg-white/10">
               Cancel
             </Button>
-            <Button
-              onClick={() => handleDeleteProject(selectedProject?.id!)}
-              className="bg-red-500 hover:bg-red-600"
-            >
+            <Button onClick={() => handleDeleteProject(selectedProject?.id!)} className="bg-red-500 hover:bg-red-600">
               Delete Project
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Archive Dialog */}
       <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
         <DialogContent className="bg-black border-white/10 text-white">
           <DialogHeader>
-            <DialogTitle>
-              {selectedProject?.status === "ARCHIVED" ? "Unarchive" : "Archive"} Project
-            </DialogTitle>
+            <DialogTitle>{selectedProject?.status === "ARCHIVED" ? "Unarchive" : "Archive"} Project</DialogTitle>
             <DialogDescription className="text-white/60">
               Are you sure you want to {selectedProject?.status === "ARCHIVED" ? "unarchive" : "archive"} "{selectedProject?.name}"?
               {selectedProject?.status !== "ARCHIVED" && " Archived projects will be hidden from public view."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowArchiveDialog(false)}
-              className="border-white/10 text-white hover:bg-white/10"
-            >
+            <Button variant="outline" onClick={() => setShowArchiveDialog(false)} className="border-white/10 text-white hover:bg-white/10">
               Cancel
             </Button>
             <Button

@@ -18,10 +18,9 @@ export async function PATCH(
     const body = await request.json();
     const { isBanned } = body;
 
-    // Prevent banning yourself
     if (params.id === session.user.id) {
       return NextResponse.json(
-        { error: "Cannot ban your own account" },
+        { error: "Cannot modify your own account" },
         { status: 400 }
       );
     }
@@ -29,6 +28,12 @@ export async function PATCH(
     const updatedUser = await prisma.user.update({
       where: { id: params.id },
       data: { isBanned },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isBanned: true,
+      },
     });
 
     await prisma.activityLog.create({

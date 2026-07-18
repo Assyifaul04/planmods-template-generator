@@ -13,9 +13,9 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
+    const search = searchParams.get("search") || "";
 
     const skip = (page - 1) * limit;
 
@@ -33,11 +33,15 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           templates: {
-            select: {
+            include: {
               template: {
                 select: {
                   id: true,
                   name: true,
+                  slug: true,
+                  platform: true,
+                  loader: true,
+                  enabled: true,
                 },
               },
             },
@@ -133,3 +137,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

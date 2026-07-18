@@ -22,8 +22,11 @@ export async function GET(
           select: {
             id: true,
             name: true,
+            slug: true,
             status: true,
             visibility: true,
+            platform: true,
+            loader: true,
             createdAt: true,
           },
         },
@@ -31,6 +34,12 @@ export async function GET(
           select: {
             id: true,
             downloadedAt: true,
+            project: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
           take: 10,
           orderBy: { downloadedAt: "desc" },
@@ -42,13 +51,36 @@ export async function GET(
             keyPrefix: true,
             createdAt: true,
             lastUsedAt: true,
+            revokedAt: true,
           },
+        },
+        notifications: {
+          select: {
+            id: true,
+            title: true,
+            message: true,
+            read: true,
+            createdAt: true,
+          },
+          take: 10,
+          orderBy: { createdAt: "desc" },
+        },
+        activities: {
+          select: {
+            id: true,
+            action: true,
+            createdAt: true,
+          },
+          take: 10,
+          orderBy: { createdAt: "desc" },
         },
         _count: {
           select: {
             projects: true,
             downloads: true,
             apiKeys: true,
+            collaborations: true,
+            notifications: true,
           },
         },
       },
@@ -81,9 +113,8 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, username, email, role, plan, isActive, isBanned } = body;
+    const { name, username, email, role, plan, isActive, isBanned, bio, website } = body;
 
-    // Check if user exists
     const existingUser = await prisma.user.findUnique({
       where: { id: params.id },
     });
@@ -92,7 +123,19 @@ export async function PATCH(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Update user
+    // Check username uniqueness if changed
+    if (username && username !== existingUser.username) {
+      const usernameExists = await prisma.user.findUnique({
+        where: { username },
+      });
+      if (usernameExists) {
+        return NextResponse.json(
+          { error: "Username already taken" },
+          { status: 400 }
+        );
+      }
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: params.id },
       data: {
@@ -103,6 +146,8 @@ export async function PATCH(
         plan,
         isActive,
         isBanned,
+        bio,
+        website,
         updatedAt: new Date(),
       },
       select: {
@@ -114,11 +159,12 @@ export async function PATCH(
         plan: true,
         isActive: true,
         isBanned: true,
+        bio: true,
+        website: true,
         updatedAt: true,
       },
     });
 
-    // Log activity
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
@@ -152,16 +198,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
-    });
-
-    if (!existingUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Prevent deleting yourself
     if (params.id === session.user.id) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
@@ -169,18 +205,39 @@ export async function DELETE(
       );
     }
 
-    // Delete user (cascade will handle related records)
+    const existingUser = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        _count: {
+          select: {
+            projects: true,
+            downloads: true,
+            apiKeys: true,
+          },
+        },
+      },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     await prisma.user.delete({
       where: { id: params.id },
     });
 
-    // Log activity
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
         action: `DELETED_USER_${params.id}`,
         metadata: {
           deletedUser: existingUser.email,
+          projectsCount: existingUser._count.projects,
+          downloadsCount: existingUser._count.downloads,
+          apiKeysCount: existingUser._count.apiKeys,
           timestamp: new Date().toISOString(),
         },
       },

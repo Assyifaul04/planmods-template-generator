@@ -24,16 +24,20 @@ export async function GET(
             name: true,
             email: true,
             image: true,
+            username: true,
           },
         },
         template: {
           select: {
             id: true,
             name: true,
+            slug: true,
             platform: true,
             loader: true,
           },
         },
+        mcVersionData: true,
+        config: true,
         githubRepository: true,
         downloads: {
           take: 10,
@@ -134,10 +138,11 @@ export async function PATCH(
       license,
       status,
       visibility,
-      isActive,
+      packageName,
+      modId,
+      author,
     } = body;
 
-    // Check if project exists
     const existingProject = await prisma.project.findUnique({
       where: { id: params.id },
     });
@@ -146,7 +151,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Update project
     const updatedProject = await prisma.project.update({
       where: { id: params.id },
       data: {
@@ -159,6 +163,9 @@ export async function PATCH(
         license,
         status,
         visibility,
+        packageName,
+        modId,
+        author,
         updatedAt: new Date(),
       },
       include: {
@@ -178,7 +185,6 @@ export async function PATCH(
       },
     });
 
-    // Log activity
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
@@ -201,7 +207,6 @@ export async function PATCH(
   }
 }
 
-
 // app/api/admin/projects/[id]/route.ts (add DELETE)
 export async function DELETE(
   request: NextRequest,
@@ -214,7 +219,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if project exists
     const existingProject = await prisma.project.findUnique({
       where: { id: params.id },
       include: {
@@ -223,6 +227,7 @@ export async function DELETE(
             downloads: true,
             stars: true,
             builds: true,
+            collaborators: true,
           },
         },
       },
@@ -232,12 +237,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Delete project (cascade will handle related records)
     await prisma.project.delete({
       where: { id: params.id },
     });
 
-    // Log activity
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
@@ -245,6 +248,9 @@ export async function DELETE(
         metadata: {
           projectName: existingProject.name,
           projectId: existingProject.id,
+          downloadsCount: existingProject._count.downloads,
+          starsCount: existingProject._count.stars,
+          buildsCount: existingProject._count.builds,
           timestamp: new Date().toISOString(),
         },
       },

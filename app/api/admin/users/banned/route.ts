@@ -20,11 +20,12 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = { isBanned: true };
-    
+
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
+        { username: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -34,9 +35,16 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           name: true,
+          username: true,
           email: true,
           image: true,
           isBanned: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              projects: true,
+            },
+          },
         },
         skip,
         take: limit,

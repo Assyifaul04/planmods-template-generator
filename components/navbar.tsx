@@ -54,7 +54,7 @@ const userNavItems = [
 
 // Function to get account menu items based on user role
 const getAccountMenuItems = (role?: string) => {
-  const dashboardPath = role === "ADMIN" ? "/admin/dashboard" : "/user";
+  const dashboardPath = role === "ADMIN" ? "/admin/dashboard" : "/user/dashboard";
 
   return [
     { href: dashboardPath, label: "Dashboard", icon: LayoutDashboard },

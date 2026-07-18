@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Table,
   TableBody,
@@ -45,13 +46,12 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  Plus,
   Package,
   Check,
   X,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
-import Image from "next/image";
 
 interface Template {
   id: string;
@@ -62,10 +62,24 @@ interface Template {
   platform: "JAVA" | "BEDROCK";
   loader: string;
   minecraftVersion: string;
+  path: string;
+  repoUrl: string | null;
+  gradleUrl: string | null;
   enabled: boolean;
   isFeatured: boolean;
   usageCount: number;
   createdAt: string;
+  templateRepo: {
+    id: string;
+    repoUrl: string;
+    platform: string;
+    loader: string;
+  } | null;
+  mcVersionData: {
+    version: string;
+    platform: string;
+    isLatest: boolean;
+  } | null;
   tags: Array<{
     tag: {
       id: string;
@@ -159,31 +173,39 @@ export default function TemplatesPage() {
         method: "DELETE",
       });
 
-      if (!response.ok) throw new Error("Failed to delete template");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete template");
+      }
 
       toast.success("Template deleted successfully");
       fetchTemplates();
       setShowDeleteDialog(false);
     } catch (error) {
       console.error("Error deleting template:", error);
-      toast.error("Failed to delete template");
+      toast.error(error instanceof Error ? error.message : "Failed to delete template");
     }
   };
 
   const getPlatformBadge = (platform: string) => {
-    return (
-      <Badge variant="outline" className="text-white/60 border-white/20">
-        {platform}
-      </Badge>
-    );
+    if (platform === "JAVA") {
+      return <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">Java</Badge>;
+    }
+    return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Bedrock</Badge>;
   };
 
-  const getLoaderBadge = (loader: string) => {
-    return (
-      <Badge variant="outline" className="text-blue-400/60 border-blue-400/20">
-        {loader}
-      </Badge>
-    );
+  const getLoaderColor = (loader: string) => {
+    const colors: Record<string, string> = {
+      FABRIC: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+      FORGE: "bg-red-500/20 text-red-400 border-red-500/30",
+      NEOFORGE: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+      QUILT: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      PAPER: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+      SPIGOT: "bg-green-500/20 text-green-400 border-green-500/30",
+      ADDON: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      SCRIPT: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    };
+    return colors[loader] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
   };
 
   return (
@@ -197,14 +219,13 @@ export default function TemplatesPage() {
         </div>
         <Button
           onClick={() => router.push("/admin/templates/new")}
-          className="bg-white/10 hover:bg-white/20 text-white"
+          className="bg-white text-black hover:bg-white/90"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Template
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-4 mb-6">
         <div className="flex-1 min-w-[200px] relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
@@ -217,7 +238,7 @@ export default function TemplatesPage() {
         </div>
 
         <Select value={platformFilter} onValueChange={setPlatformFilter}>
-          <SelectTrigger className="w-[150px] bg-white/5 border-white/10 text-white">
+          <SelectTrigger className="w-[130px] bg-white/5 border-white/10 text-white">
             <SelectValue placeholder="All Platforms" />
           </SelectTrigger>
           <SelectContent className="bg-black border-white/10 text-white">
@@ -228,7 +249,7 @@ export default function TemplatesPage() {
         </Select>
 
         <Select value={loaderFilter} onValueChange={setLoaderFilter}>
-          <SelectTrigger className="w-[150px] bg-white/5 border-white/10 text-white">
+          <SelectTrigger className="w-[130px] bg-white/5 border-white/10 text-white">
             <SelectValue placeholder="All Loaders" />
           </SelectTrigger>
           <SelectContent className="bg-black border-white/10 text-white">
@@ -237,7 +258,7 @@ export default function TemplatesPage() {
             <SelectItem value="FORGE">Forge</SelectItem>
             <SelectItem value="NEOFORGE">NeoForge</SelectItem>
             <SelectItem value="PAPER">Paper</SelectItem>
-            <SelectItem value="BEDROCK_ADDON">Bedrock Addon</SelectItem>
+            <SelectItem value="ADDON">Addon</SelectItem>
           </SelectContent>
         </Select>
 
@@ -251,7 +272,6 @@ export default function TemplatesPage() {
         </Button>
       </div>
 
-      {/* Templates Table */}
       <div className="rounded-lg border border-white/10 bg-black/40 overflow-hidden">
         <Table>
           <TableHeader className="bg-white/5">
@@ -263,14 +283,13 @@ export default function TemplatesPage() {
               <TableHead className="text-white/60 font-medium">Status</TableHead>
               <TableHead className="text-white/60 font-medium">Featured</TableHead>
               <TableHead className="text-white/60 font-medium">Usage</TableHead>
-              <TableHead className="text-white/60 font-medium">Created</TableHead>
               <TableHead className="text-white/60 font-medium text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-white/40">
+                <TableCell colSpan={8} className="text-center py-8 text-white/40">
                   <div className="flex items-center justify-center gap-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
                     Loading templates...
@@ -279,8 +298,11 @@ export default function TemplatesPage() {
               </TableRow>
             ) : templates.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-white/40">
-                  No templates found
+                <TableCell colSpan={8} className="text-center py-8 text-white/40">
+                  <div className="flex flex-col items-center gap-2">
+                    <Package className="h-12 w-12 text-white/20" />
+                    <p>No templates found</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -323,7 +345,11 @@ export default function TemplatesPage() {
                     </div>
                   </TableCell>
                   <TableCell>{getPlatformBadge(template.platform)}</TableCell>
-                  <TableCell>{getLoaderBadge(template.loader)}</TableCell>
+                  <TableCell>
+                    <Badge className={getLoaderColor(template.loader)}>
+                      {template.loader}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-white/60">{template.minecraftVersion}</TableCell>
                   <TableCell>
                     <Badge className={template.enabled ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-red-500/20 text-red-400 border-red-500/30"}>
@@ -341,15 +367,8 @@ export default function TemplatesPage() {
                     </Button>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm text-white/60">
-                      {template.usageCount} uses
-                    </div>
-                    <div className="text-xs text-white/30">
-                      {template._count.projects} projects
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-white/40 text-sm">
-                    {new Date(template.createdAt).toLocaleDateString()}
+                    <div className="text-sm text-white/60">{template.usageCount} uses</div>
+                    <div className="text-xs text-white/30">{template._count.projects} projects</div>
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -409,11 +428,8 @@ export default function TemplatesPage() {
         </Table>
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-white/40">
-          Page {page} of {totalPages}
-        </div>
+        <div className="text-sm text-white/40">Page {page} of {totalPages}</div>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -436,7 +452,6 @@ export default function TemplatesPage() {
         </div>
       </div>
 
-      {/* Delete Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="bg-black border-white/10 text-white">
           <DialogHeader>
@@ -451,17 +466,10 @@ export default function TemplatesPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              className="border-white/10 text-white hover:bg-white/10"
-            >
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-white/10 text-white hover:bg-white/10">
               Cancel
             </Button>
-            <Button
-              onClick={() => handleDeleteTemplate(selectedTemplate?.id!)}
-              className="bg-red-500 hover:bg-red-600"
-            >
+            <Button onClick={() => handleDeleteTemplate(selectedTemplate?.id!)} className="bg-red-500 hover:bg-red-600">
               Delete Template
             </Button>
           </DialogFooter>

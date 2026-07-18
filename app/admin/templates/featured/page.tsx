@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   Search,
   Star,
@@ -42,10 +43,8 @@ import {
   Package,
   TrendingUp,
   Calendar,
-  User,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Label } from "@/components/ui/label";
 
 interface FeaturedTemplate {
   id: string;
@@ -60,12 +59,6 @@ interface FeaturedTemplate {
   usageCount: number;
   createdAt: string;
   updatedAt: string;
-  user: {
-    id: string;
-    name: string | null;
-    email: string;
-    image: string | null;
-  } | null;
   _count: {
     projects: number;
   };
@@ -156,56 +149,43 @@ export default function FeaturedTemplatesPage() {
   };
 
   const getPlatformBadge = (platform: string) => {
-    return (
-      <Badge variant="outline" className="text-white/60 border-white/20">
-        {platform}
-      </Badge>
-    );
+    if (platform === "JAVA") {
+      return <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">Java</Badge>;
+    }
+    return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Bedrock</Badge>;
   };
 
-  const getLoaderBadge = (loader: string) => {
-    return (
-      <Badge variant="outline" className="text-blue-400/60 border-blue-400/20">
-        {loader}
-      </Badge>
-    );
-  };
-
-  const getInitials = (name: string | null) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+  const getLoaderColor = (loader: string) => {
+    const colors: Record<string, string> = {
+      FABRIC: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+      FORGE: "bg-red-500/20 text-red-400 border-red-500/30",
+      NEOFORGE: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+      PAPER: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    };
+    return colors[loader] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
   };
 
   return (
     <div className="px-4 lg:px-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center gap-3 mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/admin/templates")}
+          className="text-white/60 hover:text-white hover:bg-white/10"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
         <div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/admin/templates")}
-              className="text-white/60 hover:text-white hover:bg-white/10"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-            <div>
-              <h2 className="text-2xl font-semibold text-white">Featured Templates</h2>
-              <p className="text-sm text-white/60 mt-1">
-                Manage templates that appear on the featured section
-              </p>
-            </div>
-          </div>
+          <h2 className="text-2xl font-semibold text-white">Featured Templates</h2>
+          <p className="text-sm text-white/60 mt-1">
+            Manage templates that appear on the featured section
+          </p>
         </div>
         <Button
           onClick={() => setShowAddDialog(true)}
-          className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/30"
+          className="ml-auto bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/30"
         >
           <Star className="h-4 w-4 mr-2 fill-yellow-400" />
           Add Featured
@@ -275,7 +255,6 @@ export default function FeaturedTemplatesPage() {
         </Button>
       </div>
 
-      {/* Featured Templates Table */}
       <div className="rounded-lg border border-white/10 bg-black/40 overflow-hidden">
         <Table>
           <TableHeader className="bg-white/5">
@@ -348,7 +327,11 @@ export default function FeaturedTemplatesPage() {
                     </div>
                   </TableCell>
                   <TableCell>{getPlatformBadge(template.platform)}</TableCell>
-                  <TableCell>{getLoaderBadge(template.loader)}</TableCell>
+                  <TableCell>
+                    <Badge className={getLoaderColor(template.loader)}>
+                      {template.loader}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <div className="text-sm text-white/60">
                       {template.usageCount} uses
@@ -387,11 +370,8 @@ export default function FeaturedTemplatesPage() {
         </Table>
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-white/40">
-          Page {page} of {totalPages}
-        </div>
+        <div className="text-sm text-white/40">Page {page} of {totalPages}</div>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -429,7 +409,7 @@ export default function FeaturedTemplatesPage() {
           <div className="py-4">
             <div className="space-y-4">
               <div>
-                <Label htmlFor="template-select" className="text-white">Select Template *</Label>
+                <Label className="text-white">Select Template *</Label>
                 <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
                   <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1.5">
                     <SelectValue placeholder="Choose a template..." />

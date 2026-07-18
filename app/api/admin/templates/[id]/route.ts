@@ -18,15 +18,57 @@ export async function GET(
     const template = await prisma.template.findUnique({
       where: { id: params.id },
       include: {
+        templateRepo: {
+          select: {
+            id: true,
+            repoUrl: true,
+            branch: true,
+            platform: true,
+            loader: true,
+            enabled: true,
+          },
+        },
+        mcVersionData: {
+          select: {
+            id: true,
+            version: true,
+            platform: true,
+            isLatest: true,
+            isSnapshot: true,
+            releaseDate: true,
+          },
+        },
+        // FIXED: Changed from loaderMinecraftVersion to LoaderMinecraftVersion (capital L)
+        LoaderMinecraftVersion: {
+          select: {
+            id: true,
+            loader: true,
+            loaderVersion: true,
+            apiVersion: true,
+            loomVersion: true,
+            gradleVersion: true,
+            javaVersion: true,
+            mappingsVersion: true,
+            recommended: true,
+            supported: true,
+          },
+        },
         tags: {
           include: {
-            tag: true,
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
           },
         },
         projects: {
           select: {
             id: true,
             name: true,
+            slug: true,
             status: true,
             user: {
               select: {
@@ -41,6 +83,7 @@ export async function GET(
         _count: {
           select: {
             projects: true,
+            tags: true,
           },
         },
       },
@@ -60,7 +103,6 @@ export async function GET(
   }
 }
 
-// app/api/admin/templates/[id]/route.ts (add PATCH)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -82,12 +124,15 @@ export async function PATCH(
       loader,
       minecraftVersion,
       path,
+      templateRepoId,
+      repoUrl,
+      gradleUrl,
       enabled,
       isFeatured,
+      loaderMinecraftVersionId,
       tagIds,
     } = body;
 
-    // Check if template exists
     const existingTemplate = await prisma.template.findUnique({
       where: { id: params.id },
     });
@@ -121,20 +166,22 @@ export async function PATCH(
         loader,
         minecraftVersion,
         path,
-        enabled,
-        isFeatured,
+        templateRepoId: templateRepoId || null,
+        repoUrl: repoUrl || null,
+        gradleUrl: gradleUrl || null,
+        enabled: enabled !== undefined ? enabled : true,
+        isFeatured: isFeatured !== undefined ? isFeatured : false,
+        loaderMinecraftVersionId: loaderMinecraftVersionId || null,
         updatedAt: new Date(),
       },
     });
 
     // Update tags if provided
-    if (tagIds) {
-      // Remove existing tags
+    if (tagIds && tagIds.length > 0) {
       await prisma.templateTag.deleteMany({
         where: { templateId: params.id },
       });
 
-      // Add new tags
       await prisma.templateTag.createMany({
         data: tagIds.map((tagId: string) => ({
           templateId: params.id,
@@ -143,10 +190,11 @@ export async function PATCH(
       });
     }
 
-    // Fetch updated template with tags
     const updatedTemplate = await prisma.template.findUnique({
       where: { id: params.id },
       include: {
+        templateRepo: true,
+        mcVersionData: true,
         tags: {
           include: {
             tag: true,
@@ -155,7 +203,6 @@ export async function PATCH(
       },
     });
 
-    // Log activity
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
@@ -169,16 +216,23 @@ export async function PATCH(
     });
 
     return NextResponse.json(updatedTemplate);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating template:", error);
+    
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: "A template with this slug already exists." },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to update template" },
+      { error: error.message || "Failed to update template" },
       { status: 500 }
     );
   }
 }
 
-// app/api/admin/templates/[id]/route.ts (add DELETE)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -190,7 +244,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if template exists
     const existingTemplate = await prisma.template.findUnique({
       where: { id: params.id },
       include: {
@@ -206,12 +259,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
 
-    // Delete template
     await prisma.template.delete({
       where: { id: params.id },
     });
 
-    // Log activity
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,

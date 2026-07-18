@@ -23,30 +23,32 @@ import {
 } from "@/components/ui/sidebar"
 import {
   LayoutDashboardIcon,
-  ListIcon,
-  ChartBarIcon,
-  FolderIcon,
   UsersIcon,
-  CameraIcon,
-  FileTextIcon,
+  FolderIcon,
+  PackageIcon,
+  TagIcon,
+  GitBranchIcon,
+  ServerIcon,
+  ActivityIcon,
+  DownloadIcon,
+  StarIcon,
+  BellIcon,
+  KeyIcon,
   Settings2Icon,
   CircleHelpIcon,
   SearchIcon,
   DatabaseIcon,
   FileChartColumnIcon,
   FileIcon,
-  CommandIcon,
-  PackageIcon,
-  TagIcon,
-  GitBranchIcon,
-  ActivityIcon,
-  BellIcon,
-  KeyIcon,
+  LayersIcon,
   ShieldIcon,
-  ServerIcon,
-  DownloadIcon,
-  StarIcon,
   ClockIcon,
+  ListIcon,
+  PlusIcon,
+  AlertCircleIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  LoaderIcon,
 } from "lucide-react"
 
 // Function to get menu items based on user role
@@ -64,8 +66,10 @@ const getNavItems = (role?: string) => {
       icon: <UsersIcon className="h-4 w-4" />,
       items: [
         { title: "All Users", url: "/admin/users" },
-        { title: "Roles & Permissions", url: "/admin/users/roles" },
+        { title: "User Roles", url: "/admin/users/roles" },
+        { title: "User Plans", url: "/admin/users/plans" },
         { title: "Banned Users", url: "/admin/users/banned" },
+        { title: "Activity Logs", url: "/admin/users/activity" },
       ],
     },
     {
@@ -77,6 +81,21 @@ const getNavItems = (role?: string) => {
         { title: "Project Status", url: "/admin/projects/status" },
         { title: "Visibility Settings", url: "/admin/projects/visibility" },
         { title: "Archived Projects", url: "/admin/projects/archived" },
+        { title: "Collaborators", url: "/admin/projects/collaborators" },
+        { title: "Project Configs", url: "/admin/projects/configs" },
+      ],
+    },
+    {
+      title: "Minecraft Versions",
+      url: "/admin/versions",
+      icon: <LayersIcon className="h-4 w-4" />,
+      items: [
+        { title: "All Versions", url: "/admin/versions" },
+        { title: "Add Version", url: "/admin/versions/new" },
+        { title: "Loaders", url: "/admin/versions/loaders" },
+        { title: "Loader Mappings", url: "/admin/versions/mappings" },
+        { title: "Latest Versions", url: "/admin/versions/latest" },
+        { title: "Snapshots", url: "/admin/versions/snapshots" },
       ],
     },
     {
@@ -86,14 +105,22 @@ const getNavItems = (role?: string) => {
       items: [
         { title: "All Templates", url: "/admin/templates" },
         { title: "Add Template", url: "/admin/templates/new" },
+        { title: "Template Repositories", url: "/admin/templates/repos" },
         { title: "Tags Management", url: "/admin/templates/tags" },
         { title: "Featured Templates", url: "/admin/templates/featured" },
+        { title: "Template Usage", url: "/admin/templates/usage" },
       ],
     },
     {
       title: "Tags",
       url: "/admin/tags",
       icon: <TagIcon className="h-4 w-4" />,
+      items: [
+        { title: "All Tags", url: "/admin/tags" },
+        { title: "Add Tag", url: "/admin/tags/new" },
+        { title: "Tag Usage", url: "/admin/tags/usage" },
+        { title: "Template Tags", url: "/admin/tags/templates" },
+      ],
     },
     {
       title: "GitHub Repositories",
@@ -103,6 +130,8 @@ const getNavItems = (role?: string) => {
         { title: "All Repositories", url: "/admin/repositories" },
         { title: "Sync Status", url: "/admin/repositories/sync" },
         { title: "Webhook Management", url: "/admin/repositories/webhooks" },
+        { title: "Repository Stats", url: "/admin/repositories/stats" },
+        { title: "Failed Syncs", url: "/admin/repositories/failed" },
       ],
     },
     {
@@ -111,9 +140,14 @@ const getNavItems = (role?: string) => {
       icon: <ServerIcon className="h-4 w-4" />,
       items: [
         { title: "All Builds", url: "/admin/builds" },
+        { title: "Build Status", url: "/admin/builds/status" },
+        { title: "Pending Builds", url: "/admin/builds/pending" },
+        { title: "Running Builds", url: "/admin/builds/running" },
         { title: "Failed Builds", url: "/admin/builds/failed" },
+        { title: "Successful Builds", url: "/admin/builds/successful" },
         { title: "Build Queue", url: "/admin/builds/queue" },
         { title: "Build Statistics", url: "/admin/builds/statistics" },
+        { title: "Build Duration", url: "/admin/builds/duration" },
       ],
     },
     {
@@ -123,7 +157,9 @@ const getNavItems = (role?: string) => {
       items: [
         { title: "All Activities", url: "/admin/activity" },
         { title: "User Activities", url: "/admin/activity/users" },
+        { title: "Project Activities", url: "/admin/activity/projects" },
         { title: "System Activities", url: "/admin/activity/system" },
+        { title: "Activity Stats", url: "/admin/activity/stats" },
       ],
     },
     {
@@ -134,12 +170,20 @@ const getNavItems = (role?: string) => {
         { title: "Download History", url: "/admin/downloads" },
         { title: "Download Statistics", url: "/admin/downloads/statistics" },
         { title: "Popular Projects", url: "/admin/downloads/popular" },
+        { title: "Top Users", url: "/admin/downloads/top-users" },
+        { title: "Daily Downloads", url: "/admin/downloads/daily" },
       ],
     },
     {
       title: "Stars & Favorites",
       url: "/admin/stars",
       icon: <StarIcon className="h-4 w-4" />,
+      items: [
+        { title: "All Stars", url: "/admin/stars" },
+        { title: "Popular Projects", url: "/admin/stars/popular" },
+        { title: "User Favorites", url: "/admin/stars/users" },
+        { title: "Star Statistics", url: "/admin/stars/statistics" },
+      ],
     },
     {
       title: "Notifications",
@@ -148,7 +192,9 @@ const getNavItems = (role?: string) => {
       items: [
         { title: "All Notifications", url: "/admin/notifications" },
         { title: "Send Notification", url: "/admin/notifications/send" },
-        { title: "Templates", url: "/admin/notifications/templates" },
+        { title: "Notification Types", url: "/admin/notifications/types" },
+        { title: "Read Status", url: "/admin/notifications/read" },
+        { title: "Notification Templates", url: "/admin/notifications/templates" },
       ],
     },
     {
@@ -157,8 +203,23 @@ const getNavItems = (role?: string) => {
       icon: <KeyIcon className="h-4 w-4" />,
       items: [
         { title: "All API Keys", url: "/admin/api-keys" },
+        { title: "Active Keys", url: "/admin/api-keys/active" },
         { title: "Revoked Keys", url: "/admin/api-keys/revoked" },
+        { title: "Expired Keys", url: "/admin/api-keys/expired" },
         { title: "Usage Statistics", url: "/admin/api-keys/statistics" },
+        { title: "Key Scopes", url: "/admin/api-keys/scopes" },
+      ],
+    },
+    {
+      title: "Security",
+      url: "/admin/security",
+      icon: <ShieldIcon className="h-4 w-4" />,
+      items: [
+        { title: "Security Overview", url: "/admin/security" },
+        { title: "User Sessions", url: "/admin/security/sessions" },
+        { title: "Account Activity", url: "/admin/security/accounts" },
+        { title: "Verification Tokens", url: "/admin/security/verification" },
+        { title: "Security Settings", url: "/admin/security/settings" },
       ],
     },
     {
@@ -169,6 +230,8 @@ const getNavItems = (role?: string) => {
         { title: "General Settings", url: "/admin/settings/general" },
         { title: "Security", url: "/admin/settings/security" },
         { title: "Maintenance", url: "/admin/settings/maintenance" },
+        { title: "System Status", url: "/admin/settings/status" },
+        { title: "Backup", url: "/admin/settings/backup" },
       ],
     },
   ]
@@ -198,6 +261,11 @@ const getNavItems = (role?: string) => {
       name: "Data Library",
       url: "/admin/data-library",
       icon: <DatabaseIcon className="h-4 w-4" />,
+      items: [
+        { title: "Database Stats", url: "/admin/data-library/stats" },
+        { title: "Data Export", url: "/admin/data-library/export" },
+        { title: "Data Import", url: "/admin/data-library/import" },
+      ],
     },
     {
       name: "Reports",
@@ -208,6 +276,8 @@ const getNavItems = (role?: string) => {
         { title: "Project Reports", url: "/admin/reports/projects" },
         { title: "Build Reports", url: "/admin/reports/builds" },
         { title: "Download Reports", url: "/admin/reports/downloads" },
+        { title: "Template Reports", url: "/admin/reports/templates" },
+        { title: "Activity Reports", url: "/admin/reports/activity" },
       ],
     },
     {

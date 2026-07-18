@@ -18,7 +18,6 @@ export async function PATCH(
     const body = await request.json();
     const { role } = body;
 
-    // Prevent changing your own role
     if (params.id === session.user.id) {
       return NextResponse.json(
         { error: "Cannot change your own role" },

@@ -20,10 +20,10 @@ export async function GET(request: NextRequest) {
     const visibility = searchParams.get("visibility");
     const platform = searchParams.get("platform");
     const loader = searchParams.get("loader");
+    const userId = searchParams.get("userId");
 
     const skip = (page - 1) * limit;
 
-    // Build where clause
     const where: any = {};
 
     if (search) {
@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
         { description: { contains: search, mode: "insensitive" } },
         { slug: { contains: search, mode: "insensitive" } },
         { user: { name: { contains: search, mode: "insensitive" } } },
+        { user: { email: { contains: search, mode: "insensitive" } } },
       ];
     }
 
@@ -51,6 +52,10 @@ export async function GET(request: NextRequest) {
       where.loader = loader;
     }
 
+    if (userId) {
+      where.userId = userId;
+    }
+
     const [projects, total] = await Promise.all([
       prisma.project.findMany({
         where,
@@ -61,12 +66,29 @@ export async function GET(request: NextRequest) {
               name: true,
               email: true,
               image: true,
+              username: true,
             },
           },
           template: {
             select: {
               id: true,
               name: true,
+              slug: true,
+            },
+          },
+          mcVersionData: {
+            select: {
+              version: true,
+              platform: true,
+            },
+          },
+          config: true,
+          githubRepository: {
+            select: {
+              id: true,
+              repositoryName: true,
+              repositoryUrl: true,
+              private: true,
             },
           },
           _count: {
@@ -74,6 +96,7 @@ export async function GET(request: NextRequest) {
               downloads: true,
               stars: true,
               builds: true,
+              collaborators: true,
             },
           },
         },

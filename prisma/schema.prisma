@@ -1,4 +1,4 @@
-
+// schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -29,9 +29,11 @@ enum Platform {
 }
 
 enum Loader {
+  // java/
   FABRIC
   FORGE
   NEOFORGE
+  QUILT
   PAPER
   SPIGOT
   PURPUR
@@ -39,8 +41,9 @@ enum Loader {
   VELOCITY
   WATERFALL
   BUNGEECORD
-  BEDROCK_ADDON
-  BEDROCK_SCRIPT
+  // bedrock/
+  ADDON
+  SCRIPT
 }
 
 enum ProjectVisibility {
@@ -84,38 +87,38 @@ enum NotificationType {
 // =============================================================================
 
 model User {
-  id             String    @id @default(cuid())
-  name           String?
-  username       String?   @unique
-  email          String    @unique
-  emailVerified  DateTime?
-  image          String?
-  bio            String?
-  website        String?
+  id            String    @id @default(cuid())
+  name          String?
+  username      String?   @unique
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  bio           String?
+  website       String?
 
-  role           Role      @default(USER)
-  plan           Plan      @default(FREE)
-  isActive       Boolean   @default(true)
-  isBanned       Boolean   @default(false)
+  role     Role    @default(USER)
+  plan     Plan    @default(FREE)
+  isActive Boolean @default(true)
+  isBanned Boolean @default(false)
 
-  githubId       String?   @unique
+  githubId       String? @unique
   githubUsername String?
-  googleId       String?   @unique
+  googleId       String? @unique
 
-  lastLoginAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  accounts       Account[]
-  sessions       Session[]
-  projects       Project[]
-  repositories   GithubRepository[]
-  activities     ActivityLog[]
-  downloads      DownloadHistory[]
-  apiKeys        ApiKey[]
-  notifications  Notification[]
-  collaborations ProjectCollaborator[]
-  stars          ProjectStar[]
+  accounts        Account[]
+  sessions        Session[]
+  projects        Project[]
+  repositories    GithubRepository[]
+  activities      ActivityLog[]
+  downloads       DownloadHistory[]
+  apiKeys         ApiKey[]
+  notifications   Notification[]
+  collaborations  ProjectCollaborator[]
+  stars           ProjectStar[]
   triggeredBuilds BuildHistory[]
 
   @@index([email])
@@ -124,22 +127,22 @@ model User {
 }
 
 model Account {
-  id                String  @id @default(cuid())
+  id                String @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
 
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+  refresh_token String? @db.Text
+  access_token  String? @db.Text
+  expires_at    Int?
+  token_type    String?
+  scope         String?
+  id_token      String? @db.Text
+  session_state String?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -170,33 +173,121 @@ model VerificationToken {
 }
 
 // =============================================================================
+// MINECRAFT VERSION & LOADER (Terhubung ke Project & Template)
+// =============================================================================
+
+model MinecraftVersion {
+  id          String    @id @default(cuid())
+  version     String    @unique // Cth: "1.20.4"
+  platform    Platform
+  isLatest    Boolean   @default(false)
+  isSnapshot  Boolean   @default(false)
+  releaseDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi
+  loaderVersions LoaderMinecraftVersion[]
+  projects       Project[] // Relasi back-reference ke Project
+  templates      Template[] // Relasi back-reference ke Template
+
+  @@index([platform])
+  @@map("minecraft_versions")
+}
+
+model LoaderMinecraftVersion {
+  id String @id @default(cuid())
+
+  loader Loader
+
+  minecraftVersionId String
+  minecraftVersion   MinecraftVersion @relation(fields: [minecraftVersionId], references: [id], onDelete: Cascade)
+
+  loaderVersion String
+
+  apiVersion      String?
+  loomVersion     String?
+  mappingsVersion String?
+
+  gradleVersion String?
+  javaVersion   String?
+
+  repository String?
+
+  recommended Boolean @default(false)
+  supported   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  templates Template[]
+
+  @@unique([loader, minecraftVersionId])
+  @@index([minecraftVersionId])
+  @@index([loader])
+  @@map("loader_minecraft_versions")
+}
+
+// =============================================================================
+// TEMPLATE REPOSITORY
+// =============================================================================
+
+model TemplateRepo {
+  id        String   @id @default(cuid())
+  platform  Platform
+  loader    Loader
+  repoUrl   String // URL git repository
+  branch    String   @default("main")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  templates Template[]
+
+  @@unique([platform, loader])
+  @@map("template_repos")
+}
+
+// =============================================================================
 // TEMPLATE & TAG
 // =============================================================================
 
 model Template {
-  id               String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  name             String
-  slug             String   @unique
-  description      String?
-  thumbnailUrl     String?
+  name         String
+  slug         String  @unique
+  description  String?
+  thumbnailUrl String?
 
   platform         Platform
   loader           Loader
-  minecraftVersion String
+  minecraftVersion String // Foreign key (String version)
 
-  path             String
-  enabled          Boolean  @default(true)
-  isFeatured       Boolean  @default(false)
-  usageCount       Int      @default(0)
+  path           String
+  templateRepoId String?
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  repoUrl   String?
+  gradleUrl String?
 
-  // Relations
-  projects Project[]
-  tags     TemplateTag[]
+  enabled    Boolean @default(true)
+  isFeatured Boolean @default(false)
+  usageCount Int     @default(0)
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi
+  templateRepo  TemplateRepo?    @relation(fields: [templateRepoId], references: [id], onDelete: SetNull)
+  mcVersionData MinecraftVersion @relation(fields: [minecraftVersion], references: [version], onDelete: Restrict) // <--- RELASI BARU
+
+  projects                 Project[]
+  tags                     TemplateTag[]
+  LoaderMinecraftVersion   LoaderMinecraftVersion? @relation(fields: [loaderMinecraftVersionId], references: [id])
+  loaderMinecraftVersionId String?
+
+  @@unique([platform, loader, minecraftVersion])
   @@index([platform, loader])
   @@index([minecraftVersion])
   @@map("templates")
@@ -213,7 +304,6 @@ model Tag {
   @@map("tags")
 }
 
-// Tabel pivot eksplisit Template <-> Tag (many-to-many)
 model TemplateTag {
   templateId String
   tagId      String
@@ -228,49 +318,52 @@ model TemplateTag {
 }
 
 // =============================================================================
-// PROJECT
+// PROJECT & CONFIGURATION
 // =============================================================================
 
 model Project {
-  id               String            @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId           String
-  templateId       String?
+  userId     String
+  templateId String?
 
-  name             String
-  slug             String
-  description      String?
+  name        String
+  slug        String
+  description String?
 
   platform         Platform
   loader           Loader
-  minecraftVersion String
+  minecraftVersion String // Foreign key (String version)
 
-  packageName      String
-  modId            String
-  author           String
+  packageName String
+  modId       String
+  author      String
 
-  version          String            @default("1.0.0")
-  license          String            @default("MIT")
+  version String @default("1.0.0")
+  license String @default("MIT")
 
-  status           ProjectStatus     @default(DRAFT)
-  visibility       ProjectVisibility @default(PRIVATE)
+  status     ProjectStatus     @default(DRAFT)
+  visibility ProjectVisibility @default(PRIVATE)
 
-  dependencies     Json?
-  metadata         Json?
+  dependencies Json?
+  metadata     Json?
 
-  starsCount       Int               @default(0)
-  downloadsCount   Int               @default(0)
+  starsCount     Int @default(0)
+  downloadsCount Int @default(0)
 
-  lastBuildAt      DateTime?
-  archivedAt       DateTime?
+  lastBuildAt DateTime?
+  archivedAt  DateTime?
 
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relations
-  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  template         Template?             @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  // Relasi
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template      Template?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  mcVersionData MinecraftVersion @relation(fields: [minecraftVersion], references: [version], onDelete: Restrict) // <--- RELASI BARU
+
   githubRepository GithubRepository?
+  config           ProjectConfig?
   downloads        DownloadHistory[]
   builds           BuildHistory[]
   collaborators    ProjectCollaborator[]
@@ -281,7 +374,28 @@ model Project {
   @@index([templateId])
   @@index([status])
   @@index([visibility])
+  @@index([minecraftVersion])
   @@map("projects")
+}
+
+model ProjectConfig {
+  id        String @id @default(cuid())
+  projectId String @unique
+
+  loaderVersion    String?
+  fabricApiVersion String?
+  loomVersion      String?
+  javaVersion      String?
+  gradleVersion    String?
+  yarnVersion      String?
+  mappingVersion   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_configs")
 }
 
 model ProjectCollaborator {
@@ -319,23 +433,23 @@ model ProjectStar {
 // =============================================================================
 
 model GithubRepository {
-  id             String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId         String
-  projectId      String    @unique
+  userId    String
+  projectId String @unique
 
   repositoryName String
   repositoryUrl  String
   cloneUrl       String
-  defaultBranch  String    @default("main")
-  private        Boolean   @default(true)
+  defaultBranch  String  @default("main")
+  private        Boolean @default(true)
 
-  webhookId      String?
-  webhookSecret  String?
-  lastSyncedAt   DateTime?
+  webhookId     String?
+  webhookSecret String?
+  lastSyncedAt  DateTime?
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -345,20 +459,20 @@ model GithubRepository {
 }
 
 model BuildHistory {
-  id            String      @id @default(cuid())
+  id String @id @default(cuid())
 
   projectId     String
   triggeredById String?
 
-  status        BuildStatus @default(PENDING)
-  logs          String?     @db.Text
-  errorMessage  String?
+  status       BuildStatus @default(PENDING)
+  logs         String?     @db.Text
+  errorMessage String?
 
-  startedAt     DateTime?
-  finishedAt    DateTime?
-  durationMs    Int?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  durationMs Int?
 
-  createdAt     DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   triggeredBy User?   @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
@@ -373,13 +487,13 @@ model BuildHistory {
 // =============================================================================
 
 model DownloadHistory {
-  id           String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId       String
-  projectId    String
+  userId    String
+  projectId String
 
-  ipAddress    String?
-  userAgent    String?
+  ipAddress String?
+  userAgent String?
 
   downloadedAt DateTime @default(now())
 
@@ -392,12 +506,12 @@ model DownloadHistory {
 }
 
 model ActivityLog {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId    String
+  userId String
 
-  action    String
-  metadata  Json?
+  action   String
+  metadata Json?
 
   ipAddress String?
   userAgent String?
@@ -417,20 +531,20 @@ model ActivityLog {
 // =============================================================================
 
 model ApiKey {
-  id         String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId     String
-  name       String
-  keyHash    String    @unique
-  keyPrefix  String
+  userId    String
+  name      String
+  keyHash   String @unique
+  keyPrefix String
 
-  scopes     String[]  @default([])
+  scopes String[] @default([])
 
   lastUsedAt DateTime?
   expiresAt  DateTime?
   revokedAt  DateTime?
 
-  createdAt  DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -439,19 +553,19 @@ model ApiKey {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId    String
+  userId String
 
-  type      NotificationType @default(INFO)
-  title     String
-  message   String
-  link      String?
+  type    NotificationType @default(INFO)
+  title   String
+  message String
+  link    String?
 
-  read      Boolean          @default(false)
-  readAt    DateTime?
+  read   Boolean   @default(false)
+  readAt DateTime?
 
-  createdAt DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const loader = searchParams.get("loader");
     const isFeatured = searchParams.get("isFeatured");
     const enabled = searchParams.get("enabled");
+    const templateRepoId = searchParams.get("templateRepoId");
 
     const skip = (page - 1) * limit;
 
@@ -49,13 +50,46 @@ export async function GET(request: NextRequest) {
       where.enabled = enabled === "true";
     }
 
+    if (templateRepoId) {
+      where.templateRepoId = templateRepoId;
+    }
+
     const [templates, total] = await Promise.all([
       prisma.template.findMany({
         where,
         include: {
+          templateRepo: {
+            select: {
+              id: true,
+              repoUrl: true,
+              platform: true,
+              loader: true,
+            },
+          },
+          mcVersionData: {
+            select: {
+              version: true,
+              platform: true,
+              isLatest: true,
+            },
+          },
+          LoaderMinecraftVersion: {
+            select: {
+              id: true,
+              loader: true,
+              loaderVersion: true,
+              recommended: true,
+            },
+          },
           tags: {
             include: {
-              tag: true,
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
             },
           },
           _count: {
@@ -89,7 +123,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// app/api/admin/templates/route.ts (add POST)
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -99,6 +132,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
     const {
       name,
       slug,
@@ -108,10 +142,48 @@ export async function POST(request: NextRequest) {
       loader,
       minecraftVersion,
       path,
+      templateRepoId,
+      repoUrl,
+      gradleUrl,
       enabled,
       isFeatured,
+      loaderMinecraftVersionId,
       tagIds,
     } = body;
+
+    // Validate required fields
+    const errors: string[] = [];
+    
+    if (!name || name.trim() === "") errors.push("name");
+    if (!slug || slug.trim() === "") errors.push("slug");
+    if (!platform) errors.push("platform");
+    if (!loader) errors.push("loader");
+    if (!minecraftVersion || minecraftVersion.trim() === "") errors.push("minecraftVersion");
+    if (!path || path.trim() === "") errors.push("path");
+
+    if (errors.length > 0) {
+      return NextResponse.json(
+        { error: `Missing required fields: ${errors.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Check if Minecraft version exists - if not, create it automatically
+    let versionExists = await prisma.minecraftVersion.findUnique({
+      where: { version: minecraftVersion },
+    });
+
+    if (!versionExists) {
+      versionExists = await prisma.minecraftVersion.create({
+        data: {
+          version: minecraftVersion,
+          platform: platform,
+          isLatest: false,
+          isSnapshot: false,
+          releaseDate: new Date(),
+        },
+      });
+    }
 
     // Check if slug is unique
     const existingTemplate = await prisma.template.findUnique({
@@ -120,23 +192,61 @@ export async function POST(request: NextRequest) {
 
     if (existingTemplate) {
       return NextResponse.json(
-        { error: "Template with this slug already exists" },
+        { error: `Template with slug "${slug}" already exists` },
         { status: 400 }
       );
     }
 
+    // Check if loaderMinecraftVersionId exists if provided
+    let validLoaderVersionId = null;
+    if (loaderMinecraftVersionId && loaderMinecraftVersionId.trim() !== "") {
+      const loaderVersionExists = await prisma.loaderMinecraftVersion.findUnique({
+        where: { id: loaderMinecraftVersionId },
+      });
+      
+      if (!loaderVersionExists) {
+        return NextResponse.json(
+          { error: `Loader Minecraft version with ID "${loaderMinecraftVersionId}" does not exist` },
+          { status: 400 }
+        );
+      }
+      validLoaderVersionId = loaderMinecraftVersionId;
+    }
+
+    // Build the data object
+    const data: any = {
+      name: name.trim(),
+      slug: slug.trim(),
+      description: description?.trim() || null,
+      thumbnailUrl: thumbnailUrl?.trim() || null,
+      platform,
+      loader,
+      minecraftVersion: minecraftVersion.trim(),
+      path: path.trim(),
+      repoUrl: repoUrl?.trim() || null,
+      gradleUrl: gradleUrl?.trim() || null,
+      enabled: enabled !== undefined ? enabled : true,
+      isFeatured: isFeatured !== undefined ? isFeatured : false,
+    };
+
+    // Only include templateRepoId if it's a valid non-empty string
+    if (templateRepoId && templateRepoId.trim() !== "") {
+      const repoExists = await prisma.templateRepo.findUnique({
+        where: { id: templateRepoId },
+      });
+      if (repoExists) {
+        data.templateRepoId = templateRepoId;
+      }
+    }
+
+    // Only include loaderMinecraftVersionId if it's valid
+    if (validLoaderVersionId) {
+      data.loaderMinecraftVersionId = validLoaderVersionId;
+    }
+
     const template = await prisma.template.create({
       data: {
-        name,
-        slug,
-        description,
-        thumbnailUrl,
-        platform,
-        loader,
-        minecraftVersion,
-        path,
-        enabled: enabled ?? true,
-        isFeatured: isFeatured ?? false,
+        ...data,
         tags: {
           create: tagIds?.map((tagId: string) => ({
             tag: { connect: { id: tagId } },
@@ -144,6 +254,8 @@ export async function POST(request: NextRequest) {
         },
       },
       include: {
+        templateRepo: true,
+        mcVersionData: true,
         tags: {
           include: {
             tag: true,
@@ -152,7 +264,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Log activity
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
@@ -165,10 +276,25 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(template);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating template:", error);
+    
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: "Foreign key constraint failed. Please check that all referenced IDs exist." },
+        { status: 400 }
+      );
+    }
+    
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: "A template with this slug already exists." },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to create template" },
+      { error: error.message || "Failed to create template" },
       { status: 500 }
     );
   }

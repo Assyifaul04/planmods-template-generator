@@ -8,7 +8,6 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    // Check if user is admin
     if (!session || session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -18,13 +17,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const search = searchParams.get("search") || "";
     const role = searchParams.get("role");
+    const plan = searchParams.get("plan");
     const isBanned = searchParams.get("isBanned");
+    const isActive = searchParams.get("isActive");
 
     const skip = (page - 1) * limit;
 
-    // Build where clause
     const where: any = {};
-    
+
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -33,12 +33,21 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    if (role) {
+    // Only add role filter if it's provided and not empty
+    if (role && role !== "") {
       where.role = role;
     }
 
-    if (isBanned !== null) {
+    if (plan && plan !== "") {
+      where.plan = plan;
+    }
+
+    if (isBanned !== null && isBanned !== "") {
       where.isBanned = isBanned === "true";
+    }
+
+    if (isActive !== null && isActive !== "") {
+      where.isActive = isActive === "true";
     }
 
     const [users, total] = await Promise.all([
@@ -55,11 +64,14 @@ export async function GET(request: NextRequest) {
           isActive: true,
           isBanned: true,
           createdAt: true,
+          updatedAt: true,
           lastLoginAt: true,
           _count: {
             select: {
               projects: true,
               downloads: true,
+              apiKeys: true,
+              collaborations: true,
             },
           },
         },

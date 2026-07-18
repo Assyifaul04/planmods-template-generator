@@ -28,6 +28,7 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  ArrowLeft,
   Archive,
   Trash2,
   FolderOpen,
@@ -41,7 +42,7 @@ interface ArchivedProject {
   description: string | null;
   platform: string;
   loader: string;
-  archivedAt: string;
+  archivedAt: string | null;
   user: {
     id: string;
     name: string | null;
@@ -139,20 +140,22 @@ export default function ArchivedProjectsPage() {
 
   return (
     <div className="px-4 lg:px-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center gap-3 mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/admin/projects")}
+          className="text-white/60 hover:text-white hover:bg-white/10"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
         <div>
           <h2 className="text-2xl font-semibold text-white">Archived Projects</h2>
           <p className="text-sm text-white/60 mt-1">
-            Manage archived projects and restore them if needed
+            Manage archived projects and restore if needed
           </p>
         </div>
-        <Button
-          onClick={() => router.push("/admin/projects")}
-          className="bg-white/10 hover:bg-white/20 text-white"
-        >
-          <FolderOpen className="h-4 w-4 mr-2" />
-          All Projects
-        </Button>
       </div>
 
       <div className="flex gap-4 mb-6">
@@ -200,7 +203,10 @@ export default function ArchivedProjectsPage() {
             ) : projects.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-white/40">
-                  No archived projects found
+                  <div className="flex flex-col items-center gap-2">
+                    <Archive className="h-12 w-12 text-white/20" />
+                    <p>No archived projects found</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -240,7 +246,7 @@ export default function ArchivedProjectsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-white/40 text-sm">
-                    {new Date(project.archivedAt).toLocaleDateString()}
+                    {project.archivedAt ? new Date(project.archivedAt).toLocaleDateString() : "-"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -253,7 +259,7 @@ export default function ArchivedProjectsPage() {
                         }}
                         className="border-white/10 text-white hover:bg-white/10"
                       >
-                        <Archive className="h-4 w-4 mr-2" />
+                        <FolderOpen className="h-4 w-4 mr-2" />
                         Unarchive
                       </Button>
                       <Button
@@ -278,9 +284,7 @@ export default function ArchivedProjectsPage() {
       </div>
 
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-white/40">
-          Page {page} of {totalPages}
-        </div>
+        <div className="text-sm text-white/40">Page {page} of {totalPages}</div>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -303,7 +307,6 @@ export default function ArchivedProjectsPage() {
         </div>
       </div>
 
-      {/* Unarchive Dialog */}
       <Dialog open={showUnarchiveDialog} onOpenChange={setShowUnarchiveDialog}>
         <DialogContent className="bg-black border-white/10 text-white">
           <DialogHeader>
@@ -314,24 +317,16 @@ export default function ArchivedProjectsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowUnarchiveDialog(false)}
-              className="border-white/10 text-white hover:bg-white/10"
-            >
+            <Button variant="outline" onClick={() => setShowUnarchiveDialog(false)} className="border-white/10 text-white hover:bg-white/10">
               Cancel
             </Button>
-            <Button
-              onClick={() => handleUnarchiveProject(selectedProject?.id!)}
-              className="bg-green-500 hover:bg-green-600"
-            >
+            <Button onClick={() => handleUnarchiveProject(selectedProject?.id!)} className="bg-green-500 hover:bg-green-600">
               Unarchive Project
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="bg-black border-white/10 text-white">
           <DialogHeader>
@@ -342,17 +337,10 @@ export default function ArchivedProjectsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              className="border-white/10 text-white hover:bg-white/10"
-            >
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-white/10 text-white hover:bg-white/10">
               Cancel
             </Button>
-            <Button
-              onClick={() => handleDeleteProject(selectedProject?.id!)}
-              className="bg-red-500 hover:bg-red-600"
-            >
+            <Button onClick={() => handleDeleteProject(selectedProject?.id!)} className="bg-red-500 hover:bg-red-600">
               Delete Project
             </Button>
           </DialogFooter>

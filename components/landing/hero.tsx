@@ -20,7 +20,7 @@ export function Hero() {
     if (userRole === "ADMIN") {
       router.push("/admin/dashboard");
     } else {
-      router.push("/user");
+      router.push("/user/dashboard");
     }
   };
 
