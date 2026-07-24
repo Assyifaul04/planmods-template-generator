@@ -1,6 +1,7 @@
 // components/user/user-sidebar.tsx
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -15,13 +16,42 @@ import {
   UserIcon,
   KeyIcon,
   CreditCardIcon,
+  GitBranchIcon,
+  StarIcon,
+  UsersIcon,
+  SettingsIcon,
+  ShieldIcon,
+  BookOpenIcon,
+  HelpCircleIcon,
+  ActivityIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  HomeIcon,
+  SparklesIcon,
+  CloudIcon,
+  Code2Icon,
+  ServerIcon,
+  TerminalIcon,
+  ZapIcon,
+  Play,
+  LayersIcon,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
 
 type MenuItem = {
   title: string;
   url: string;
   icon: React.ElementType;
   requiresPlan?: ("PRO" | "TEAM")[];
+  badge?: number;
+};
+
+type MenuSection = {
+  label: string;
+  icon: React.ElementType;
+  items: MenuItem[];
+  defaultOpen?: boolean;
 };
 
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -35,127 +65,206 @@ const GithubIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// Dashboard section
-const dashboardItems: MenuItem[] = [
+// ============================================================================
+// MENU SECTIONS
+// ============================================================================
+
+const menuSections: MenuSection[] = [
+  // 1. DASHBOARD
   {
-    title: "Overview",
-    url: "/user/dashboard",
+    label: "Dashboard",
     icon: LayoutDashboardIcon,
+    defaultOpen: true,
+    items: [
+      { title: "Overview", url: "/user/dashboard", icon: LayoutDashboardIcon },
+      { title: "Notifications", url: "/user/notifications", icon: BellIcon },
+      { title: "Downloads", url: "/user/downloads", icon: DownloadIcon },
+      { title: "Activity Log", url: "/user/activity", icon: HistoryIcon },
+    ],
   },
-  {
-    title: "Notifications",
-    url: "/user/notifications",
-    icon: BellIcon,
-  },
-  {
-    title: "Downloads",
-    url: "/user/downloads",
-    icon: DownloadIcon,
-  },
-  {
-    title: "Activity Log",
-    url: "/user/activity",
-    icon: HistoryIcon,
-  },
-];
 
-// Generator section
-const generatorItems: MenuItem[] = [
+  // 2. PROJECTS
   {
-    title: "Generate Project",
-    url: "/user/generator",
-    icon: HammerIcon,
-  },
-  {
-    title: "My Projects",
-    url: "/user/projects",
+    label: "Projects",
     icon: FolderIcon,
+    defaultOpen: true,
+    items: [
+      { title: "Generate", url: "/user/generator", icon: SparklesIcon },
+      { title: "My Projects", url: "/user/projects", icon: FolderIcon },
+      {
+        title: "Collaborations",
+        url: "/user/projects/collaborations",
+        icon: UsersIcon,
+      },
+    ],
   },
+
+  // 4. GITHUB
   {
-    title: "Templates",
-    url: "/user/templates",
-    icon: PackageIcon,
+    label: "GitHub",
+    icon: GitBranchIcon,
+    defaultOpen: false,
+    items: [
+      {
+        title: "My Repositories",
+        url: "/user/github/repositories",
+        icon: GithubIcon,
+      },
+      {
+        title: "Connected Accounts",
+        url: "/user/github/accounts",
+        icon: GithubIcon,
+      },
+      { title: "Sync Status", url: "/user/github/sync", icon: GitBranchIcon },
+      {
+        title: "Webhook Status",
+        url: "/user/github/webhooks",
+        icon: GitBranchIcon,
+      },
+    ],
   },
+
+  // 6. ACCOUNT
   {
-    title: "GitHub",
-    url: "/user/github",
-    icon: GithubIcon,
+    label: "Account",
+    icon: UserIcon,
+    defaultOpen: false,
+    items: [
+      { title: "Profile", url: "/user/profile", icon: UserIcon },
+      { title: "Account Settings", url: "/user/account", icon: SettingsIcon },
+      { title: "Security", url: "/user/security", icon: ShieldIcon },
+      { title: "Billing & Plan", url: "/user/billing", icon: CreditCardIcon },
+      {
+        title: "API Keys",
+        url: "/user/api-keys",
+        icon: KeyIcon,
+        requiresPlan: ["PRO", "TEAM"],
+      },
+    ],
+  },
+
+  // 7. HELP & DOCS
+  {
+    label: "Help & Docs",
+    icon: BookOpenIcon,
+    defaultOpen: false,
+    items: [
+      { title: "Documentation", url: "/docs", icon: BookOpenIcon },
+      { title: "Help Center", url: "/help", icon: HelpCircleIcon },
+    ],
   },
 ];
 
-// Account section
-const accountItems: MenuItem[] = [
-  {
-    title: "Profile",
-    url: "/user/profile",
-    icon: UserIcon,
-  },
-  {
-    title: "Billing & Plan",
-    url: "/user/billing",
-    icon: CreditCardIcon,
-  },
-  {
-    title: "API Keys",
-    url: "/user/api-keys",
-    icon: KeyIcon,
-    requiresPlan: ["PRO", "TEAM"],
-  },
-];
+// ============================================================================
+// NAV GROUP COMPONENT
+// ============================================================================
 
 function NavGroup({
-  label,
-  items,
+  section,
   isActive,
+  isOpen,
+  onToggle,
 }: {
-  label: string;
-  items: MenuItem[];
+  section: MenuSection;
   isActive: (url: string) => boolean;
+  isOpen: boolean;
+  onToggle: () => void;
 }) {
+  const Icon = section.icon;
+
   return (
-    <div>
-      <p className="px-2.5 text-[10px] font-semibold uppercase tracking-wider text-white/35">
-        {label}
-      </p>
-      <div className="mt-1.5 space-y-0.5">
-        {items.map((item) => {
-          const active = isActive(item.url);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.title}
-              href={item.url}
-              className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors ${
-                active
-                  ? "bg-white text-black font-medium"
-                  : "text-white/60 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{item.title}</span>
-            </Link>
-          );
-        })}
-      </div>
+    <div className="space-y-1">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Icon className="h-3.5 w-3.5" />
+          <span>{section.label}</span>
+        </div>
+        {isOpen ? (
+          <ChevronDownIcon className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronRightIcon className="h-3.5 w-3.5" />
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="ml-2 space-y-0.5 border-l border-white/5 pl-2">
+          {section.items.map((item) => {
+            const active = isActive(item.url);
+            const ItemIcon = item.icon;
+            return (
+              <Link
+                key={item.title}
+                href={item.url}
+                className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+                  active
+                    ? "bg-white text-black font-medium"
+                    : "text-white/60 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <ItemIcon className="h-4 w-4 shrink-0" />
+                <span className="truncate flex-1">{item.title}</span>
+                {item.badge !== undefined && item.badge > 0 && (
+                  <Badge className="ml-auto bg-red-500 text-white border-red-500 text-[10px] px-1.5 py-0.5 min-w-[18px] flex items-center justify-center">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </Badge>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
+
+// ============================================================================
+// MAIN SIDEBAR COMPONENT
+// ============================================================================
 
 export function UserSidebar({ className = "" }: { className?: string }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const plan = session?.user?.plan as "FREE" | "PRO" | "TEAM" | undefined;
 
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => {
+      const initial: Record<string, boolean> = {};
+      menuSections.forEach((section) => {
+        initial[section.label] = section.defaultOpen || false;
+      });
+      return initial;
+    },
+  );
+
   const isActive = (url: string) => {
-    // Exact match for dashboard
-    if (url === "/user/dashboard") return pathname === "/user/dashboard" || pathname === "/user";
+    if (url === "/user/dashboard")
+      return pathname === "/user/dashboard" || pathname === "/user";
     return pathname === url || pathname.startsWith(url + "/");
   };
 
-  // Filter account items based on user's plan
-  const visibleAccountItems = accountItems.filter(
-    (item) => !item.requiresPlan || (plan && item.requiresPlan.includes(plan as "PRO" | "TEAM"))
-  );
+  const toggleSection = (label: string) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
+  };
+
+  const filteredSections = menuSections.map((section) => {
+    if (section.label === "Account") {
+      return {
+        ...section,
+        items: section.items.filter(
+          (item) =>
+            !item.requiresPlan ||
+            (plan && item.requiresPlan.includes(plan as "PRO" | "TEAM")),
+        ),
+      };
+    }
+    return section;
+  });
 
   return (
     <aside
@@ -163,12 +272,20 @@ export function UserSidebar({ className = "" }: { className?: string }) {
     >
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
-        <nav className="space-y-5">
-          <NavGroup label="Dashboard" items={dashboardItems} isActive={isActive} />
-          <NavGroup label="Generator" items={generatorItems} isActive={isActive} />
-          {visibleAccountItems.length > 0 && (
-            <NavGroup label="Account" items={visibleAccountItems} isActive={isActive} />
-          )}
+        <nav className="space-y-2">
+          {filteredSections.map((section) => {
+            if (section.items.length === 0) return null;
+
+            return (
+              <NavGroup
+                key={section.label}
+                section={section}
+                isActive={isActive}
+                isOpen={openSections[section.label] || false}
+                onToggle={() => toggleSection(section.label)}
+              />
+            );
+          })}
         </nav>
       </div>
     </aside>

@@ -1,4 +1,4 @@
-// app/api/admin/versions/mappings/route.ts
+// app/api/admin/versions/mappings/route.ts - Perbaiki juga
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -31,7 +31,11 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { loader: { contains: search, mode: "insensitive" } },
         { loaderVersion: { contains: search, mode: "insensitive" } },
-        { minecraftVersion: { version: { contains: search, mode: "insensitive" } } },
+        { 
+          minecraftVersion: { 
+            version: { contains: search, mode: "insensitive" } 
+          } 
+        },
       ];
     }
 

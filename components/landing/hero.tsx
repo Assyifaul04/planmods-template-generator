@@ -15,7 +15,6 @@ export function Hero() {
   const isLoggedIn = status === "authenticated" && !!session?.user;
   const userRole = session?.user?.role;
 
-  // Function to handle dashboard navigation
   const handleDashboardClick = () => {
     if (userRole === "ADMIN") {
       router.push("/admin/dashboard");
@@ -24,7 +23,6 @@ export function Hero() {
     }
   };
 
-  // Function to handle "Start Building" click
   const handleStartBuilding = () => {
     if (!isLoggedIn) {
       router.push("/login");
@@ -35,11 +33,7 @@ export function Hero() {
 
   return (
     <section className="relative overflow-hidden bg-black py-24 lg:py-32">
-      {/* Ambient backdrop — forge glow + faint isometric grid, purely decorative */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-      >
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute left-1/2 top-0 h-[520px] w-[720px] -translate-x-1/2 rounded-full bg-orange-500/10 blur-[120px]" />
         <div
           className="absolute inset-0 opacity-[0.07]"
@@ -62,33 +56,29 @@ export function Hero() {
               className="gap-2 border-white/15 bg-white/[0.03] font-mono text-[11px] tracking-widest text-[#a1a1a1]"
             >
               <Sparkles className="size-3 text-orange-400" />
-              PLANMOD TEMPLATE GENERATOR
+              MINECRAFT MOD BOILERPLATE GENERATOR
             </Badge>
 
             <h1 className="mt-6 text-5xl font-bold leading-[1.05] tracking-tight text-white lg:text-6xl">
-              Generate Minecraft
+              Skip the setup.
               <br />
-              Mod Templates
+              Generate mod
               <span className="block bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 bg-clip-text text-transparent">
-                in seconds.
+                boilerplate instantly.
               </span>
             </h1>
 
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#a1a1a1]">
-              Create professional starter projects for{" "}
-              <strong className="font-semibold text-white">Fabric</strong>,{" "}
-              <strong className="font-semibold text-white">Forge</strong>,{" "}
-              <strong className="font-semibold text-white">NeoForge</strong>,{" "}
-              <strong className="font-semibold text-white">Paper</strong>, and{" "}
-              <strong className="font-semibold text-white">
-                Bedrock Add-ons
-              </strong>
-              . Generate, download as ZIP, publish directly to GitHub, and
-              open instantly in Visual Studio Code.
+              Planmods scaffolds ready-to-code starter projects for both{" "}
+              <strong className="font-semibold text-white">Minecraft: Java Edition</strong>{" "}
+              and{" "}
+              <strong className="font-semibold text-white">Bedrock Edition</strong>{" "}
+              — no boilerplate to write by hand. Pick your platform, generate the
+              project structure, download as ZIP, publish to GitHub, or open
+              instantly in VS Code.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4">
-              {/* Start Building Button */}
               <Button
                 size="lg"
                 onClick={handleStartBuilding}
@@ -98,7 +88,6 @@ export function Hero() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
 
-              {/* Dashboard Button - Only show when logged in */}
               {isLoggedIn && (
                 <Button
                   size="lg"
@@ -112,24 +101,25 @@ export function Hero() {
               )}
             </div>
 
+            {/* Platform coverage — makes the Java vs Bedrock split explicit */}
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-[#a1a1a1]">
               <div className="flex items-center gap-2">
-                <Code2 className="size-4 text-orange-400" />
-                GitHub Integration
+                <Cuboid className="size-4 text-orange-400" />
+                Java Edition mod loaders
               </div>
               <div className="flex items-center gap-2">
                 <Box className="size-4 text-orange-400" />
-                ZIP Generator
+                Bedrock Add-ons
               </div>
               <div className="flex items-center gap-2">
-                <Cuboid className="size-4 text-orange-400" />
-                Java &amp; Bedrock
+                <Code2 className="size-4 text-orange-400" />
+                GitHub &amp; VS Code ready
               </div>
             </div>
 
             <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.2em] text-white/30">
-              Fabric &middot; Forge &middot; NeoForge &middot; Paper &middot;
-              Bedrock &middot; VS Code &middot; GitHub
+              Java Edition: Fabric &middot; Forge &middot; NeoForge &middot; Paper
+              &nbsp;/&nbsp; Bedrock: Add-ons
             </p>
           </div>
 

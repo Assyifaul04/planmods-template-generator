@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import fs from "fs";
+import path from "path";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,31 +17,43 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
-    const projectId = params.id;
+    const { id } = await params;
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id: projectId,
-        userId,
-      },
+    // Cek apakah user adalah owner atau collaborator
+    const project = await prisma.project.findUnique({
+      where: { id },
       include: {
         template: {
           select: {
             id: true,
             name: true,
-            platform: true,
-            loader: true,
+            slug: true,
           },
         },
-        githubRepository: true,
-        builds: {
-          take: 5,
-          orderBy: { createdAt: "desc" },
+        mcVersionData: {
+          select: {
+            version: true,
+            platform: true,
+          },
+        },
+        githubRepository: {
+          select: {
+            id: true,
+            repositoryName: true,
+            repositoryUrl: true,
+            cloneUrl: true,
+            defaultBranch: true,
+            private: true,
+            lastSyncedAt: true,
+          },
         },
         downloads: {
-          take: 5,
+          take: 10,
           orderBy: { downloadedAt: "desc" },
+        },
+        builds: {
+          take: 10,
+          orderBy: { createdAt: "desc" },
         },
         collaborators: {
           include: {
@@ -66,9 +80,9 @@ export async function GET(
         },
         _count: {
           select: {
-            builds: true,
             downloads: true,
             stars: true,
+            builds: true,
             collaborators: true,
           },
         },
@@ -79,20 +93,36 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
+    // ✅ Cek apakah user adalah owner atau collaborator
+    const isOwner = project.userId === session.user.id;
+    const isAdmin = session.user.role === "ADMIN";
+    
+    // Cek apakah user adalah collaborator
+    const isCollaborator = await prisma.projectCollaborator.findFirst({
+      where: {
+        projectId: id,
+        userId: session.user.id,
+      },
+    });
+
+    // ✅ Jika bukan owner, admin, atau collaborator → Forbidden
+    if (!isOwner && !isAdmin && !isCollaborator) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(project);
   } catch (error) {
     console.error("Error fetching project:", error);
     return NextResponse.json(
       { error: "Failed to fetch project" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// app/api/user/projects/[id]/route.ts (add PATCH)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -101,15 +131,15 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
-    const projectId = params.id;
-    const body = await request.json();
+    const { id } = await params;
 
-    // Check if project exists and belongs to user
-    const existingProject = await prisma.project.findFirst({
-      where: {
-        id: projectId,
-        userId,
+    // Get existing project
+    const existingProject = await prisma.project.findUnique({
+      where: { id },
+      select: { 
+        userId: true, 
+        slug: true,
+        name: true,
       },
     });
 
@@ -117,49 +147,125 @@ export async function PATCH(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const updatedProject = await prisma.project.update({
-      where: { id: projectId },
-      data: {
-        name: body.name,
-        description: body.description,
-        platform: body.platform,
-        loader: body.loader,
-        minecraftVersion: body.minecraftVersion,
-        version: body.version,
-        license: body.license,
-        status: body.status,
-        visibility: body.visibility,
-        updatedAt: new Date(),
-      },
-    });
+    // ✅ Hanya owner atau admin yang bisa edit
+    const isOwner = existingProject.userId === session.user.id;
+    const isAdmin = session.user.role === "ADMIN";
 
-    // Log activity
-    await prisma.activityLog.create({
-      data: {
-        userId,
-        action: `UPDATED_PROJECT_${projectId}`,
-        metadata: {
-          projectName: updatedProject.name,
-          updatedFields: Object.keys(body),
-          timestamp: new Date().toISOString(),
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    
+    if (!body.name) {
+      return NextResponse.json(
+        { error: "Project name is required" },
+        { status: 400 },
+      );
+    }
+
+    // Generate new slug from new name
+    const newSlug = body.slug || body.name.toLowerCase().replace(/\s+/g, "-");
+    const oldSlug = existingProject.slug;
+
+    // Prepare update data
+    const updateData: any = {
+      name: body.name,
+      description: body.description || null,
+      platform: body.platform,
+      loader: body.loader,
+      minecraftVersion: body.minecraftVersion,
+      packageName: body.packageName,
+      modId: body.modId,
+      author: body.author,
+      version: body.version,
+      license: body.license || "MIT",
+      visibility: body.visibility,
+      status: body.status,
+      slug: newSlug,
+    };
+
+    // Update project di database
+    const updatedProject = await prisma.project.update({
+      where: { id },
+      data: updateData,
+      include: {
+        template: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        mcVersionData: {
+          select: {
+            version: true,
+            platform: true,
+          },
+        },
+        githubRepository: {
+          select: {
+            id: true,
+            repositoryName: true,
+            repositoryUrl: true,
+            cloneUrl: true,
+            defaultBranch: true,
+            private: true,
+            lastSyncedAt: true,
+          },
+        },
+        _count: {
+          select: {
+            downloads: true,
+            stars: true,
+            builds: true,
+            collaborators: true,
+          },
         },
       },
     });
 
-    return NextResponse.json(updatedProject);
+    // Rename folder if slug changed
+    if (oldSlug !== newSlug) {
+      try {
+        const basePath = path.join(
+          process.cwd(),
+          "public",
+          "projects",
+          session.user.id
+        );
+        
+        const oldPath = path.join(basePath, oldSlug);
+        const newPath = path.join(basePath, newSlug);
+
+        if (fs.existsSync(oldPath)) {
+          fs.renameSync(oldPath, newPath);
+          console.log(`✅ Renamed project folder: ${oldSlug} → ${newSlug}`);
+        } else {
+          console.log(`⚠️ Project folder not found: ${oldPath}`);
+        }
+      } catch (fsError) {
+        console.error("Error renaming project folder:", fsError);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Project updated successfully",
+      project: updatedProject,
+    });
   } catch (error) {
     console.error("Error updating project:", error);
     return NextResponse.json(
       { error: "Failed to update project" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// app/api/user/projects/[id]/route.ts (add DELETE)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -168,43 +274,61 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
-    const projectId = params.id;
+    const { id } = await params;
 
-    // Check if project exists and belongs to user
-    const existingProject = await prisma.project.findFirst({
-      where: {
-        id: projectId,
-        userId,
+    const project = await prisma.project.findUnique({
+      where: { id },
+      select: { 
+        userId: true,
+        slug: true,
       },
     });
 
-    if (!existingProject) {
+    if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
+    // ✅ Hanya owner atau admin yang bisa delete
+    const isOwner = project.userId === session.user.id;
+    const isAdmin = session.user.role === "ADMIN";
+
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     await prisma.project.delete({
-      where: { id: projectId },
+      where: { id },
     });
 
-    // Log activity
-    await prisma.activityLog.create({
-      data: {
-        userId,
-        action: `DELETED_PROJECT_${projectId}`,
-        metadata: {
-          projectName: existingProject.name,
-          timestamp: new Date().toISOString(),
-        },
-      },
-    });
+    // Hapus folder project dari filesystem
+    try {
+      const projectDir = path.join(
+        process.cwd(),
+        "public",
+        "projects",
+        session.user.id,
+        project.slug
+      );
 
-    return NextResponse.json({ success: true });
+      if (fs.existsSync(projectDir)) {
+        fs.rmSync(projectDir, { recursive: true, force: true });
+        console.log(`✅ Deleted project folder: ${projectDir}`);
+      } else {
+        console.log(`⚠️ Project folder not found: ${projectDir}`);
+      }
+    } catch (fsError) {
+      console.error("Error deleting project files:", fsError);
+    }
+
+    return NextResponse.json({ 
+      success: true,
+      message: "Project deleted successfully" 
+    });
   } catch (error) {
     console.error("Error deleting project:", error);
     return NextResponse.json(
       { error: "Failed to delete project" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

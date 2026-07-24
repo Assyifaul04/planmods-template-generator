@@ -212,6 +212,7 @@ model LoaderMinecraftVersion {
 
   gradleVersion String?
   javaVersion   String?
+  jdkVersion    String?
 
   repository String?
 
@@ -278,7 +279,6 @@ model Template {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relasi
   templateRepo  TemplateRepo?    @relation(fields: [templateRepoId], references: [id], onDelete: SetNull)
   mcVersionData MinecraftVersion @relation(fields: [minecraftVersion], references: [version], onDelete: Restrict) // <--- RELASI BARU
 

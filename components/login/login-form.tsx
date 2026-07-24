@@ -51,9 +51,6 @@ export function LoginForm({
 
   async function handleOAuthSignIn(provider: "google" | "github") {
     setLoadingProvider(provider);
-    // callbackUrl "/" -> after successful login, redirect to landing page.
-    // Middleware will determine: if role is admin/moderator, automatically
-    // redirect to /dashboard; if regular user, stay at "/".
     await signIn(provider, { callbackUrl: "/" });
   }
 

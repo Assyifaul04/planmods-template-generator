@@ -105,8 +105,8 @@ export function NavMain({ items }: { items: NavItem[] }) {
                           const subActive = pathname === subItem.url;
                           return (
                             <SidebarMenuSubItem key={subItem.title}>
+                              {/* ✅ Hapus asChild dan gunakan komponen langsung */}
                               <SidebarMenuSubButton
-                                asChild
                                 className={cn(
                                   "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
                                   subActive
@@ -114,7 +114,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                                     : "text-white/50 hover:bg-white/[0.04] hover:text-white"
                                 )}
                               >
-                                <Link href={subItem.url}>
+                                <Link href={subItem.url} className="flex w-full items-center">
                                   <span>{subItem.title}</span>
                                 </Link>
                               </SidebarMenuSubButton>
@@ -126,8 +126,8 @@ export function NavMain({ items }: { items: NavItem[] }) {
                   </div>
                 </>
               ) : (
+                // ✅ Hapus asChild dan gunakan Link langsung di dalam
                 <SidebarMenuButton
-                  asChild
                   className={cn(
                     "group relative rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
                     active
@@ -135,7 +135,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                       : "text-white/55 hover:bg-white/[0.04] hover:text-white"
                   )}
                 >
-                  <Link href={item.url} className="flex items-center gap-2.5">
+                  <Link href={item.url} className="flex w-full items-center gap-2.5">
                     {active && (
                       <span className="absolute -left-2 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-orange-400" />
                     )}

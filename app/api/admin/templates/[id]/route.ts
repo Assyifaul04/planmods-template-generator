@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,8 +15,10 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const template = await prisma.template.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         templateRepo: {
           select: {
@@ -38,7 +40,6 @@ export async function GET(
             releaseDate: true,
           },
         },
-        // FIXED: Changed from loaderMinecraftVersion to LoaderMinecraftVersion (capital L)
         LoaderMinecraftVersion: {
           select: {
             id: true,
@@ -105,7 +106,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -114,6 +115,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const {
       name,
@@ -134,7 +136,7 @@ export async function PATCH(
     } = body;
 
     const existingTemplate = await prisma.template.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingTemplate) {
@@ -156,7 +158,7 @@ export async function PATCH(
 
     // Update template
     const template = await prisma.template.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         slug,
@@ -179,19 +181,19 @@ export async function PATCH(
     // Update tags if provided
     if (tagIds && tagIds.length > 0) {
       await prisma.templateTag.deleteMany({
-        where: { templateId: params.id },
+        where: { templateId: id },
       });
 
       await prisma.templateTag.createMany({
         data: tagIds.map((tagId: string) => ({
-          templateId: params.id,
+          templateId: id,
           tagId,
         })),
       });
     }
 
     const updatedTemplate = await prisma.template.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         templateRepo: true,
         mcVersionData: true,
@@ -206,7 +208,7 @@ export async function PATCH(
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
-        action: `UPDATED_TEMPLATE_${params.id}`,
+        action: `UPDATED_TEMPLATE_${id}`,
         metadata: {
           templateName: template.name,
           updatedFields: Object.keys(body),
@@ -235,7 +237,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -244,8 +246,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const existingTemplate = await prisma.template.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -260,13 +264,13 @@ export async function DELETE(
     }
 
     await prisma.template.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
-        action: `DELETED_TEMPLATE_${params.id}`,
+        action: `DELETED_TEMPLATE_${id}`,
         metadata: {
           templateName: existingTemplate.name,
           projectCount: existingTemplate._count.projects,

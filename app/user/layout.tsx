@@ -26,7 +26,6 @@ export default function UserLayout({
     }
   }, [status, session, router]);
 
-  // Redirect /user to /user/dashboard
   useEffect(() => {
     if (pathname === "/user") {
       router.replace("/user/dashboard");
@@ -49,7 +48,7 @@ export default function UserLayout({
       <Navbar />
       <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:px-6">
         <UserSidebar className="sticky top-20 hidden h-[calc(100vh-6rem)] w-60 shrink-0 lg:block" />
-        <main className="min-w-0 flex-1 bg-black">
+        <main className="min-w-0 flex-1 bg-black px-4 pt-4 pb-8 lg:px-8 lg:pt-6 lg:pb-12">
           {children}
         </main>
       </div>

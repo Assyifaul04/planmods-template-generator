@@ -1,50 +1,24 @@
 // app/api/user/versions/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const searchParams = request.nextUrl.searchParams;
-    const loader = searchParams.get("loader");
-    const platform = searchParams.get("platform");
-
-    const where: any = {};
-
-    if (loader) {
-      where.loaderVersions = {
-        some: {
-          loader: loader,
-        },
-      };
-    }
-
-    if (platform) {
-      where.platform = platform as "JAVA" | "BEDROCK";
-    }
-
     const versions = await prisma.minecraftVersion.findMany({
-      where,
-      include: {
-        loaderVersions: {
-          where: loader ? { loader: loader as any } : undefined,
-          select: {
-            loader: true,
-            recommended: true,
-          },
-        },
+      where: {
+        platform: "JAVA",
       },
-      orderBy: [
-        { isLatest: "desc" },
-        { releaseDate: "desc" },
-      ],
+      orderBy: {
+        version: "desc",
+      },
+      select: {
+        id: true,
+        version: true,
+        platform: true,
+        isLatest: true,
+        isSnapshot: true,
+        releaseDate: true,
+      },
     });
 
     return NextResponse.json({ versions });

@@ -3,368 +3,470 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-interface MojangVersion {
-  id: string;
-  type: string;
-  url: string;
-  time: string;
-  releaseTime: string;
+interface FabricGameVersion {
+  version: string;
+  stable: boolean;
 }
 
-interface MojangVersionManifest {
-  latest: {
-    release: string;
-    snapshot: string;
-  };
-  versions: MojangVersion[];
+interface FabricLoaderVersion {
+  version: string;
+  stable: boolean;
 }
 
-// Loader configurations with Java 17+ support
-const LOADER_CONFIGS = {
-  FABRIC: {
-    versions: [
-      { loaderVersion: '0.16.9', apiVersion: '0.100.0', loomVersion: '1.7-SNAPSHOT' },
-      { loaderVersion: '0.16.8', apiVersion: '0.100.0', loomVersion: '1.7-SNAPSHOT' },
-      { loaderVersion: '0.16.7', apiVersion: '0.99.0', loomVersion: '1.6-SNAPSHOT' },
-      { loaderVersion: '0.16.6', apiVersion: '0.99.0', loomVersion: '1.6-SNAPSHOT' },
-      { loaderVersion: '0.16.5', apiVersion: '0.98.0', loomVersion: '1.6-SNAPSHOT' },
-      { loaderVersion: '0.16.4', apiVersion: '0.98.0', loomVersion: '1.6-SNAPSHOT' },
-      { loaderVersion: '0.16.3', apiVersion: '0.97.0', loomVersion: '1.6-SNAPSHOT' },
-      { loaderVersion: '0.16.2', apiVersion: '0.97.0', loomVersion: '1.6-SNAPSHOT' },
-      { loaderVersion: '0.16.1', apiVersion: '0.96.0', loomVersion: '1.5-SNAPSHOT' },
-      { loaderVersion: '0.16.0', apiVersion: '0.96.0', loomVersion: '1.5-SNAPSHOT' },
-      { loaderVersion: '0.15.11', apiVersion: '0.90.0', loomVersion: '1.5-SNAPSHOT' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
+interface LoaderData {
+  loaderVersion: string;
+  apiVersion?: string;
+  loomVersion?: string;
+  mappingsVersion?: string;
+}
+
+// ✅ FABRIC LOOM VERSIONS - STABLE RELEASES
+// Disesuaikan agar menggunakan versi loom terbaru yang kompatibel dengan Gradle 8.14
+const FABRIC_LOOM_VERSIONS: Record<string, string> = {
+  '1.21': '1.11.7',
+  '1.21.1': '1.11.7',
+  '1.21.2': '1.11.7',
+  '1.21.3': '1.11.7',
+  '1.21.4': '1.11.7',
+  '1.21.5': '1.11.7',
+  '1.21.6': '1.11.7',
+  '1.21.7': '1.11.7',
+  '1.21.8': '1.11.7',
+  '1.21.9': '1.11.7',
+  '1.21.10': '1.11.7',
+  '1.21.11': '1.11.7',
+  '1.20': '1.7.4',
+  '1.20.1': '1.7.4',
+  '1.20.2': '1.7.4',
+  '1.20.3': '1.7.4',
+  '1.20.4': '1.7.4',
+  '1.20.5': '1.7.4',
+  '1.20.6': '1.7.4',
+  '1.19': '1.6.12',
+  '1.19.1': '1.6.12',
+  '1.19.2': '1.6.12',
+  '1.19.3': '1.6.12',
+  '1.19.4': '1.6.12',
+  '1.18': '1.5.14',
+  '1.18.1': '1.5.14',
+  '1.18.2': '1.5.14',
+  '1.17': '1.4.12',
+  '1.17.1': '1.4.12',
+  '1.16': '1.3.11',
+  '1.16.1': '1.3.11',
+  '1.16.2': '1.3.11',
+  '1.16.3': '1.3.11',
+  '1.16.4': '1.3.11',
+  '1.16.5': '1.3.11',
+  'default': '1.7.4',
+};
+
+// ✅ FABRIC API VERSIONS
+const FABRIC_API_VERSIONS: Record<string, string> = {
+  '1.21.11': '0.135.2+1.21.11', // Diperbarui ke versi yang benar sesuai error sebelumnya
+  '1.21.10': '0.106.1+1.21.10',
+  '1.21.9': '0.106.1+1.21.9',
+  '1.21.8': '0.106.1+1.21.8',
+  '1.21.7': '0.106.1+1.21.7',
+  '1.21.6': '0.106.1+1.21.6',
+  '1.21.5': '0.106.1+1.21.5',
+  '1.21.4': '0.106.1+1.21.4',
+  '1.21.3': '0.106.1+1.21.3',
+  '1.21.2': '0.106.1+1.21.2',
+  '1.21.1': '0.106.1+1.21.1',
+  '1.21': '0.106.1+1.21',
+  '1.20.4': '0.97.0+1.20.4',
+  '1.20.1': '0.91.1+1.20.1',
+  '1.19.4': '0.87.1+1.19.4',
+  '1.19.2': '0.76.1+1.19.2',
+  '1.18.2': '0.67.1+1.18.2',
+  '1.17.1': '0.46.1+1.17.1',
+  '1.16.5': '0.34.1+1.16.5',
+  'default': '0.91.1+1.20.4',
+};
+
+// ✅ MAPPINGS VERSIONS
+const MAPPINGS_VERSIONS: Record<string, string> = {
+  '1.21.11': '1.21.11+build.1',
+  '1.21.10': '1.21.10+build.1',
+  '1.21.9': '1.21.9+build.1',
+  '1.21.8': '1.21.8+build.1',
+  '1.21.7': '1.21.7+build.1',
+  '1.21.6': '1.21.6+build.1',
+  '1.21.5': '1.21.5+build.1',
+  '1.21.4': '1.21.4+build.1',
+  '1.21.3': '1.21.3+build.1',
+  '1.21.2': '1.21.2+build.1',
+  '1.21.1': '1.21.1+build.3',
+  '1.21': '1.21+build.1',
+  '1.20.4': '1.20.4+build.3',
+  '1.20.1': '1.20.1+build.10',
+  '1.19.4': '1.19.4+build.2',
+  '1.19.2': '1.19.2+build.1',
+  '1.18.2': '1.18.2+build.4',
+  '1.17.1': '1.17.1+build.1',
+  '1.16.5': '1.16.5+build.1',
+  'default': '1.20.4+build.3',
+};
+
+// ✅ EXPLICIT MAPPINGS
+const EXPLICIT_MAPPINGS: Record<string, Record<string, LoaderData>> = {
+  '1.21.11': {
+    FABRIC: {
+      loaderVersion: '0.16.9',
+      apiVersion: '0.135.2+1.21.11',
+      loomVersion: '1.11.7', // Diperbarui ke versi Loom yang butuh Gradle 8.14
+      mappingsVersion: '1.21.11+build.1'
+    },
+    QUILT: { loaderVersion: '0.27.0', apiVersion: '1.3.0+1.21.11' },
+    FORGE: { loaderVersion: '55.0.0' },
+    NEOFORGE: { loaderVersion: '21.3.0' },
   },
-  FORGE: {
-    versions: [
-      { loaderVersion: '52.0.0', apiVersion: '1.0.0' },
-      { loaderVersion: '51.0.0', apiVersion: '1.0.0' },
-      { loaderVersion: '50.0.0', apiVersion: '1.0.0' },
-      { loaderVersion: '49.0.0', apiVersion: '1.0.0' },
-      { loaderVersion: '48.0.0', apiVersion: '1.0.0' },
-      { loaderVersion: '47.3.0', apiVersion: '1.0.0' },
-      { loaderVersion: '47.2.0', apiVersion: '1.0.0' },
-      { loaderVersion: '47.1.0', apiVersion: '1.0.0' },
-      { loaderVersion: '47.0.0', apiVersion: '1.0.0' },
-      { loaderVersion: '46.1.0', apiVersion: '1.0.0' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
+  '1.21.10': {
+    FABRIC: {
+      loaderVersion: '0.16.9',
+      apiVersion: '0.106.1+1.21.10',
+      loomVersion: '1.11.7',
+      mappingsVersion: '1.21.10+build.1'
+    },
   },
-  NEOFORGE: {
-    versions: [
-      { loaderVersion: '21.1.100-beta', apiVersion: '21.1' },
-      { loaderVersion: '21.1.99-beta', apiVersion: '21.1' },
-      { loaderVersion: '21.1.98-beta', apiVersion: '21.1' },
-      { loaderVersion: '21.1.97-beta', apiVersion: '21.1' },
-      { loaderVersion: '21.1.96-beta', apiVersion: '21.1' },
-      { loaderVersion: '21.1.95-beta', apiVersion: '21.1' },
-      { loaderVersion: '21.1.94-beta', apiVersion: '21.1' },
-      { loaderVersion: '21.1.93-beta', apiVersion: '21.1' },
-      { loaderVersion: '21.1.92-beta', apiVersion: '21.1' },
-      { loaderVersion: '21.1.91-beta', apiVersion: '21.1' },
-      { loaderVersion: '20.4.100-beta', apiVersion: '20.4' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
+  '1.21.9': {
+    FABRIC: {
+      loaderVersion: '0.16.9',
+      apiVersion: '0.106.1+1.21.9',
+      loomVersion: '1.11.7',
+      mappingsVersion: '1.21.9+build.1'
+    },
   },
-  QUILT: {
-    versions: [
-      { loaderVersion: '0.25.0', apiVersion: '0.20.0' },
-      { loaderVersion: '0.24.0', apiVersion: '0.20.0' },
-      { loaderVersion: '0.23.0', apiVersion: '0.20.0' },
-      { loaderVersion: '0.22.0', apiVersion: '0.20.0' },
-      { loaderVersion: '0.21.0', apiVersion: '0.20.0' },
-      { loaderVersion: '0.20.0', apiVersion: '0.20.0' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
+  '1.21.3': {
+    FABRIC: {
+      loaderVersion: '0.16.9',
+      apiVersion: '0.106.1+1.21.3',
+      loomVersion: '1.11.7',
+      mappingsVersion: '1.21.3+build.1'
+    },
+    QUILT: { loaderVersion: '0.26.3', apiVersion: '1.2.1+1.21.3' },
+    FORGE: { loaderVersion: '53.0.0' },
+    NEOFORGE: { loaderVersion: '21.1.72' },
   },
-  PAPER: {
-    versions: [
-      { loaderVersion: '1.21.3-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.21.2-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.21.1-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.21-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.6-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.5-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.4-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.3-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.2-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.1-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20-R0.1-SNAPSHOT' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
+  '1.21.1': {
+    FABRIC: {
+      loaderVersion: '0.16.9',
+      apiVersion: '0.106.1+1.21.1',
+      loomVersion: '1.11.7',
+      mappingsVersion: '1.21.1+build.3'
+    },
+    QUILT: { loaderVersion: '0.26.3', apiVersion: '1.1.1+1.21.1' },
+    FORGE: { loaderVersion: '51.0.32' },
+    NEOFORGE: { loaderVersion: '21.0.167' },
   },
-  SPIGOT: {
-    versions: [
-      { loaderVersion: '1.21.3-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.21.2-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.21.1-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.21-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.6-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.5-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.4-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.3-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.2-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20.1-R0.1-SNAPSHOT' },
-      { loaderVersion: '1.20-R0.1-SNAPSHOT' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
+  '1.20.4': {
+    FABRIC: {
+      loaderVersion: '0.16.9',
+      apiVersion: '0.97.0+1.20.4',
+      loomVersion: '1.7.4',
+      mappingsVersion: '1.20.4+build.3'
+    },
+    QUILT: { loaderVersion: '0.26.3', apiVersion: '0.92.0+1.20.4' },
+    FORGE: { loaderVersion: '49.1.0' },
+    NEOFORGE: { loaderVersion: '20.4.237' },
   },
-  PURPUR: {
-    versions: [
-      { loaderVersion: '1.21.3' },
-      { loaderVersion: '1.21.2' },
-      { loaderVersion: '1.21.1' },
-      { loaderVersion: '1.21' },
-      { loaderVersion: '1.20.6' },
-      { loaderVersion: '1.20.5' },
-      { loaderVersion: '1.20.4' },
-      { loaderVersion: '1.20.3' },
-      { loaderVersion: '1.20.2' },
-      { loaderVersion: '1.20.1' },
-      { loaderVersion: '1.20' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
-  },
-  FOLIA: {
-    versions: [
-      { loaderVersion: '1.21.3' },
-      { loaderVersion: '1.21.2' },
-      { loaderVersion: '1.21.1' },
-      { loaderVersion: '1.21' },
-      { loaderVersion: '1.20.6' },
-      { loaderVersion: '1.20.5' },
-      { loaderVersion: '1.20.4' },
-      { loaderVersion: '1.20.3' },
-      { loaderVersion: '1.20.2' },
-      { loaderVersion: '1.20.1' },
-      { loaderVersion: '1.20' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
-  },
-  VELOCITY: {
-    versions: [
-      { loaderVersion: '3.3.0-SNAPSHOT' },
-      { loaderVersion: '3.2.0-SNAPSHOT' },
-      { loaderVersion: '3.1.0-SNAPSHOT' },
-      { loaderVersion: '3.0.0-SNAPSHOT' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
-  },
-  WATERFALL: {
-    versions: [
-      { loaderVersion: '1.21' },
-      { loaderVersion: '1.20' },
-      { loaderVersion: '1.19' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
-  },
-  BUNGEECORD: {
-    versions: [
-      { loaderVersion: '1.21' },
-      { loaderVersion: '1.20' },
-      { loaderVersion: '1.19' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
-  },
-  ADDON: {
-    versions: [
-      { loaderVersion: '1.0.0' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
-  },
-  SCRIPT: {
-    versions: [
-      { loaderVersion: '1.0.0' },
-    ],
-    gradleVersion: '8.8',
-    javaVersion: '21',
+  '1.20.1': {
+    FABRIC: {
+      loaderVersion: '0.15.11',
+      apiVersion: '0.91.1+1.20.1',
+      loomVersion: '1.7.4',
+      mappingsVersion: '1.20.1+build.10'
+    },
   },
 };
 
-// Function to get the latest loader version for a specific loader
-function getLatestLoaderVersion(loader: string, mcVersion: string): any {
-  const config = LOADER_CONFIGS[loader as keyof typeof LOADER_CONFIGS];
-  if (!config) return null;
-  
-  // Return the first (latest) version
-  return config.versions[0] || null;
+// ✅ FUNGSI UNTUK FETCH DARI FABRIC API
+async function fetchFabricVersions(): Promise<string[]> {
+  try {
+    const response = await fetch('https://meta.fabricmc.net/v2/versions/game');
+    if (!response.ok) throw new Error(`Failed to fetch Fabric versions: ${response.status}`);
+    const data: FabricGameVersion[] = await response.json();
+    return data
+      .filter(v => v.stable === true)
+      .map(v => v.version);
+  } catch (error) {
+    console.error('Error fetching Fabric versions:', error);
+    return [];
+  }
 }
 
-// Function to get loader config with Java 17+ support
-function getLoaderConfig(loader: string): any {
-  const config = LOADER_CONFIGS[loader as keyof typeof LOADER_CONFIGS];
-  if (!config) return null;
-  
-  return {
-    gradleVersion: config.gradleVersion || '8.8',
-    javaVersion: config.javaVersion || '21',
-  };
+async function fetchFabricLoaders(): Promise<string[]> {
+  try {
+    const response = await fetch('https://meta.fabricmc.net/v2/versions/loader');
+    if (!response.ok) throw new Error(`Failed to fetch Fabric loaders: ${response.status}`);
+    const data: FabricLoaderVersion[] = await response.json();
+    return data
+      .filter(v => v.stable === true)
+      .map(v => v.version);
+  } catch (error) {
+    console.error('Error fetching Fabric loaders:', error);
+    return [];
+  }
+}
+
+// ✅ FUNGSI UNTUK MENENTUKAN JAVA & GRADLE (DIPERBAIKI)
+function getJavaAndGradleVersion(mcVersion: string): { java: string, gradle: string } {
+  const parts = mcVersion.split('.');
+  const major = parseInt(parts[0] || '1');
+  const minor = parseInt(parts[1] || '0');
+  const patch = parseInt(parts[2] || '0');
+
+  // Minecraft 1.20.5+ dan 1.21+ menggunakan Java 21 dan membutuhkan Gradle 8.14 untuk Loom 1.11.7+
+  if ((major === 1 && minor >= 21) || (major === 1 && minor === 20 && patch >= 5)) {
+    return { java: '21', gradle: '8.14' }; // 🔧 FIX UTAMA
+  }
+  // Minecraft 1.18 - 1.20.4
+  if (major === 1 && minor >= 18) {
+    return { java: '17', gradle: '8.5' };
+  }
+  // Minecraft 1.17
+  if (major === 1 && minor === 17) {
+    return { java: '16', gradle: '7.6' };
+  }
+  // Minecraft 1.16 ke bawah
+  return { java: '8', gradle: '6.8.3' };
+}
+
+// ✅ GET LOOM VERSION
+function getLoomVersion(mcVersion: string): string {
+  for (const [prefix, version] of Object.entries(FABRIC_LOOM_VERSIONS)) {
+    if (mcVersion.startsWith(prefix)) {
+      return version;
+    }
+  }
+  return FABRIC_LOOM_VERSIONS['default'];
+}
+
+// ✅ GET API VERSION
+function getApiVersion(mcVersion: string): string {
+  if (FABRIC_API_VERSIONS[mcVersion]) {
+    return FABRIC_API_VERSIONS[mcVersion];
+  }
+  return FABRIC_API_VERSIONS['default'];
+}
+
+// ✅ GET MAPPINGS VERSION
+function getMappingsVersion(mcVersion: string): string {
+  if (MAPPINGS_VERSIONS[mcVersion]) {
+    return MAPPINGS_VERSIONS[mcVersion];
+  }
+  return MAPPINGS_VERSIONS['default'];
+}
+
+// ✅ GENERATOR OTOMATIS UNTUK LOADER
+function getLoaderInfo(loader: string, mcVersion: string): LoaderData | null {
+  if (EXPLICIT_MAPPINGS[mcVersion]?.[loader]) {
+    return EXPLICIT_MAPPINGS[mcVersion][loader];
+  }
+
+  if (loader === 'FABRIC') {
+    return {
+      loaderVersion: '0.16.9',
+      apiVersion: getApiVersion(mcVersion),
+      loomVersion: getLoomVersion(mcVersion),
+      mappingsVersion: getMappingsVersion(mcVersion),
+    };
+  }
+
+  switch (loader) {
+    case 'PAPER':
+    case 'SPIGOT':
+      return { loaderVersion: `${mcVersion}-R0.1-SNAPSHOT` };
+    case 'PURPUR':
+    case 'FOLIA':
+      return { loaderVersion: mcVersion };
+    case 'VELOCITY':
+      return { loaderVersion: '3.3.0-SNAPSHOT' };
+    case 'WATERFALL':
+    case 'BUNGEECORD':
+      return { loaderVersion: mcVersion };
+    case 'FORGE':
+    case 'NEOFORGE':
+    case 'QUILT':
+      return null;
+    default:
+      return null;
+  }
 }
 
 async function fetchMinecraftVersions() {
   try {
-    console.log('🚀 Starting to fetch ALL Minecraft versions from Mojang...');
-    
-    const manifestResponse = await fetch('https://launchermeta.mojang.com/mc/game/version_manifest.json');
-    
-    if (!manifestResponse.ok) {
-      throw new Error(`Failed to fetch manifest: ${manifestResponse.status}`);
-    }
-    
-    const manifest: MojangVersionManifest = await manifestResponse.json();
-    
-    console.log(`📦 Found ${manifest.versions.length} versions in manifest`);
-    
-    const latestRelease = manifest.latest.release;
-    const latestSnapshot = manifest.latest.snapshot;
-    
-    console.log(`📌 Latest Release: ${latestRelease}`);
-    console.log(`📌 Latest Snapshot: ${latestSnapshot}`);
-    
-    // Process ALL versions (removed the slice limit)
-    const versionsToProcess = manifest.versions;
-    console.log(`🔄 Processing ALL ${versionsToProcess.length} versions...`);
-    
+    console.log('🚀 Starting to fetch Minecraft versions...');
+
+    // ✅ FETCH DARI MULTIPLE SOURCES
+    const mojangResponse = await fetch('https://launchermeta.mojang.com/mc/game/version_manifest.json');
+    if (!mojangResponse.ok) throw new Error(`Failed to fetch Mojang manifest: ${mojangResponse.status}`);
+    const mojangManifest = await mojangResponse.json();
+
+    const fabricVersions = await fetchFabricVersions();
+    const fabricLoaders = await fetchFabricLoaders();
+
+    console.log(`📦 Found ${mojangManifest.versions.length} Mojang versions`);
+    console.log(`📦 Found ${fabricVersions.length} Fabric-supported versions`);
+    console.log(`📦 Found ${fabricLoaders.length} Fabric loader versions`);
+
+    const latestRelease = mojangManifest.latest.release;
     let createdCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
     let errorCount = 0;
-    
-    // Track progress
-    let processed = 0;
-    const total = versionsToProcess.length;
-    
-    for (const version of versionsToProcess) {
-      processed++;
-      // Show progress every 10 versions
-      if (processed % 10 === 0) {
-        console.log(`📊 Progress: ${processed}/${total} (${Math.round(processed/total * 100)}%)`);
+    let loaderCount = 0;
+
+    // ✅ GABUNGKAN DAFTAR VERSI DARI MOJANG DAN FABRIC
+    const allVersions = new Set<string>();
+
+    // Dari Mojang
+    for (const v of mojangManifest.versions) {
+      if (v.type === 'release') {
+        const parts = v.id.split('.');
+        const major = parseInt(parts[0] || '1');
+        const minor = parseInt(parts[1] || '0');
+        if (major === 1 && minor >= 14) {
+          allVersions.add(v.id);
+        }
       }
-      
-      // Skip very old versions (pre-1.14) to save time
-      const versionNum = parseFloat(version.id);
-      if (versionNum < 1.14) {
-        console.log(`⏭️ Skipping old version: ${version.id}`);
-        skippedCount++;
-        continue;
-      }
-      
-      // Skip if it's a snapshot
-      if (version.type === 'snapshot') {
-        console.log(`⏭️ Skipping snapshot: ${version.id}`);
-        skippedCount++;
-        continue;
-      }
-      
+    }
+
+    // Dari Fabric
+    for (const v of fabricVersions) {
+      allVersions.add(v);
+    }
+
+    console.log(`📋 Total unique versions to process: ${allVersions.size}`);
+
+    for (const versionId of allVersions) {
       try {
-        // Check if version already exists
-        const existing = await prisma.minecraftVersion.findUnique({
-          where: { version: version.id },
-        });
-        
-        if (existing) {
-          console.log(`⏭️ Version ${version.id} already exists, skipping...`);
+        // Skip snapshot/alpha/beta
+        if (versionId.includes('pre') || versionId.includes('rc') ||
+            versionId.includes('alpha') || versionId.includes('beta') ||
+            versionId.includes('snapshot')) {
           skippedCount++;
           continue;
         }
-        
-        // Determine platform (Java only for now)
-        const platform = 'JAVA';
-        const isLatest = version.id === latestRelease;
-        const isSnapshot = version.type === 'snapshot';
-        
-        // Create the Minecraft version
-        const created = await prisma.minecraftVersion.create({
-          data: {
-            version: version.id,
-            platform,
-            isLatest,
-            isSnapshot,
-            releaseDate: new Date(version.releaseTime),
-          },
+
+        const isLatest = versionId === latestRelease;
+        const javaInfo = getJavaAndGradleVersion(versionId);
+
+        const existing = await prisma.minecraftVersion.findUnique({
+          where: { version: versionId },
         });
-        
-        console.log(`✅ Created version: ${created.version}`);
-        createdCount++;
-        
-        // Create loader mappings for this version
-        const loadersToCreate = [
-          { loader: 'FABRIC' },
-          { loader: 'FORGE' },
-          { loader: 'NEOFORGE' },
-          { loader: 'QUILT' },
-          { loader: 'PAPER' },
-          { loader: 'SPIGOT' },
-          { loader: 'PURPUR' },
-          { loader: 'FOLIA' },
-          { loader: 'VELOCITY' },
-          { loader: 'WATERFALL' },
-          { loader: 'BUNGEECORD' },
-          { loader: 'ADDON' },
-          { loader: 'SCRIPT' },
-        ];
-        
-        for (const loaderData of loadersToCreate) {
-          // Get loader configuration
-          const loaderConfig = getLoaderConfig(loaderData.loader);
-          const latestVersion = getLatestLoaderVersion(loaderData.loader, version.id);
-          
-          if (!loaderConfig || !latestVersion) {
-            console.log(`  ⏭️ Skipping ${loaderData.loader} - no config available`);
-            continue;
-          }
-          
-          // Only add loaders that are compatible with Java 17+
-          // All our loaders now support Java 17+
-          
-          // Create the loader mapping
-          await prisma.loaderMinecraftVersion.create({
+
+        let createdMc;
+        if (existing) {
+          createdMc = await prisma.minecraftVersion.update({
+            where: { version: versionId },
             data: {
-              loader: loaderData.loader,
-              minecraftVersionId: created.id,
-              loaderVersion: latestVersion.loaderVersion,
-              apiVersion: latestVersion.apiVersion || null,
-              loomVersion: latestVersion.loomVersion || null,
-              gradleVersion: loaderConfig.gradleVersion,
-              javaVersion: loaderConfig.javaVersion,
-              recommended: isLatest,
-              supported: true,
+              isLatest: isLatest,
+              releaseDate: new Date(),
             },
           });
-          console.log(`  ✅ Added ${loaderData.loader} ${latestVersion.loaderVersion} for ${version.id} (Java ${loaderConfig.javaVersion})`);
+          updatedCount++;
+          console.log(`🔄 Updated version: ${createdMc.version}`);
+        } else {
+          createdMc = await prisma.minecraftVersion.create({
+            data: {
+              version: versionId,
+              platform: 'JAVA',
+              isLatest: isLatest,
+              isSnapshot: false,
+              releaseDate: new Date(),
+            },
+          });
+          createdCount++;
+          console.log(`✅ Created version: ${createdMc.version}`);
         }
-        
+
+        const javaLoaders = [
+          'FABRIC', 'FORGE', 'NEOFORGE', 'QUILT',
+          'PAPER', 'SPIGOT', 'PURPUR', 'FOLIA',
+          'VELOCITY', 'WATERFALL', 'BUNGEECORD'
+        ];
+
+        for (const loaderName of javaLoaders) {
+          const loaderInfo = getLoaderInfo(loaderName, versionId);
+
+          if (!loaderInfo) continue;
+
+          const existingLoaderMapping = await prisma.loaderMinecraftVersion.findFirst({
+            where: {
+              loader: loaderName as any,
+              minecraftVersionId: createdMc.id,
+            },
+          });
+
+          if (existingLoaderMapping) {
+            await prisma.loaderMinecraftVersion.update({
+              where: { id: existingLoaderMapping.id },
+              data: {
+                loaderVersion: loaderInfo.loaderVersion,
+                apiVersion: loaderInfo.apiVersion || null,
+                loomVersion: loaderInfo.loomVersion || null,
+                mappingsVersion: loaderInfo.mappingsVersion || null,
+                gradleVersion: javaInfo.gradle,
+                javaVersion: javaInfo.java,
+                jdkVersion: javaInfo.java,
+                recommended: isLatest,
+                supported: true,
+              },
+            });
+            console.log(`  🔄 Updated ${loaderName} ${loaderInfo.loaderVersion}`);
+          } else {
+            await prisma.loaderMinecraftVersion.create({
+              data: {
+                loader: loaderName as any,
+                minecraftVersionId: createdMc.id,
+                loaderVersion: loaderInfo.loaderVersion,
+                apiVersion: loaderInfo.apiVersion || null,
+                loomVersion: loaderInfo.loomVersion || null,
+                mappingsVersion: loaderInfo.mappingsVersion || null,
+                gradleVersion: javaInfo.gradle,
+                javaVersion: javaInfo.java,
+                jdkVersion: javaInfo.java,
+                recommended: isLatest,
+                supported: true,
+              },
+            });
+            console.log(`  📝 Added ${loaderName} ${loaderInfo.loaderVersion}`);
+          }
+          loaderCount++;
+        }
+
       } catch (error) {
-        console.error(`❌ Error processing version ${version.id}:`, error);
+        console.error(`❌ Error processing version ${versionId}:`, error);
         errorCount++;
       }
     }
-    
+
     console.log('\n📊 Summary:');
-    console.log(`✅ Created: ${createdCount} versions`);
-    console.log(`⏭️ Skipped: ${skippedCount} versions`);
-    console.log(`❌ Errors: ${errorCount} versions`);
-    console.log('🎉 Done fetching ALL Minecraft versions!');
-    
+    console.log(`✅ Created: ${createdCount} Minecraft versions`);
+    console.log(`🔄 Updated: ${updatedCount} Minecraft versions`);
+    console.log(`📝 Created/Updated: ${loaderCount} Loader mappings`);
+    console.log(`⏭️ Skipped: ${skippedCount} snapshot/old versions`);
+    console.log(`❌ Errors: ${errorCount}`);
+    console.log('🎉 Done fetching data!');
+
+    const availableVersions = await prisma.minecraftVersion.findMany({
+      where: { platform: 'JAVA' },
+      orderBy: { version: 'desc' },
+      select: { version: true, isLatest: true },
+      take: 20,
+    });
+    console.log('\n📋 Latest JAVA versions:');
+    availableVersions.forEach(v => {
+      console.log(`  - ${v.version} ${v.isLatest ? '(Latest)' : ''}`);
+    });
+
   } catch (error) {
-    console.error('❌ Error fetching Minecraft versions:', error);
+    console.error('❌ Fatal Error:', error);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-// Run the script
 fetchMinecraftVersions();

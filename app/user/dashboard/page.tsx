@@ -21,7 +21,13 @@ import {
   FileEditIcon,
   RefreshCwIcon,
   ArchiveIcon,
+  InfoIcon,
+  AlertCircleIcon,
+  CheckCircleIcon,
 } from "lucide-react";
+import { notificationEvents } from "@/lib/notification-events";
+import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
 
 interface DashboardStats {
   totalProjects: number;
@@ -49,6 +55,17 @@ interface RecentDownload {
   project?: { name: string };
 }
 
+interface Notification {
+  id: string;
+  type: "INFO" | "SUCCESS" | "WARNING" | "ERROR";
+  title: string;
+  message: string;
+  link: string | null;
+  read: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
 const statusConfig: Record<
   string,
   { label: string; icon: React.ElementType; className: string }
@@ -60,12 +77,27 @@ const statusConfig: Record<
   ARCHIVED: { label: "Archived", icon: ArchiveIcon, className: "text-white/40" },
 };
 
+const notificationIconMap = {
+  INFO: InfoIcon,
+  SUCCESS: CheckCircleIcon,
+  WARNING: AlertCircleIcon,
+  ERROR: AlertCircleIcon,
+};
+
+const notificationColorMap = {
+  INFO: "text-blue-400",
+  SUCCESS: "text-green-400",
+  WARNING: "text-yellow-400",
+  ERROR: "text-red-400",
+};
+
 export default function UserDashboardPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -80,6 +112,7 @@ export default function UserDashboardPage() {
       setStats(data.stats);
       setRecentProjects(data.recentProjects || []);
       setRecentDownloads(data.recentDownloads || []);
+      setNotifications(data.recentNotifications || []);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -87,12 +120,21 @@ export default function UserDashboardPage() {
     }
   };
 
-  const statCards = [
-    { label: "Projects", value: stats?.totalProjects ?? 0, icon: FolderIcon },
-    { label: "Downloads", value: stats?.totalDownloads ?? 0, icon: DownloadIcon },
-    { label: "Stars", value: stats?.totalStars ?? 0, icon: StarIcon },
-    { label: "Builds", value: stats?.totalBuilds ?? 0, icon: ActivityIcon },
-  ];
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read
+    try {
+      await fetch(`/api/user/notifications/${notification.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ read: true }),
+      });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+
+    // Navigate to notifications page
+    router.push("/user/notifications");
+  };
 
   const getStatusBadge = (status: string) => {
     const config = statusConfig[status];
@@ -106,6 +148,13 @@ export default function UserDashboardPage() {
     );
   };
 
+  const statCards = [
+    { label: "Projects", value: stats?.totalProjects ?? 0, icon: FolderIcon },
+    { label: "Downloads", value: stats?.totalDownloads ?? 0, icon: DownloadIcon },
+    { label: "Stars", value: stats?.totalStars ?? 0, icon: StarIcon },
+    { label: "Builds", value: stats?.totalBuilds ?? 0, icon: ActivityIcon },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -117,7 +166,7 @@ export default function UserDashboardPage() {
           <p className="text-sm text-white/40">Overview of your projects and activity</p>
         </div>
         <Button
-          onClick={() => router.push("/user/projects/create")}
+          onClick={() => router.push("/user/generator")}
           className="bg-white text-black hover:bg-white/90"
           size="sm"
         >
@@ -196,7 +245,7 @@ export default function UserDashboardPage() {
                 size="sm"
                 variant="outline"
                 className="mt-3 border-white/10 text-white hover:bg-white/10"
-                onClick={() => router.push("/user/projects/create")}
+                onClick={() => router.push("/user/generator")}
               >
                 Create one
               </Button>
@@ -237,26 +286,68 @@ export default function UserDashboardPage() {
             )}
           </Card>
 
-          {/* Notifications */}
-          <Card className="border-white/10 bg-white/[0.02] p-4">
-            <div className="flex items-center justify-between">
+          {/* ✅ Notifications Card - Clickable */}
+          <Card className="border-white/10 bg-white/[0.02] p-4 cursor-pointer hover:bg-white/5 transition-colors">
+            <div
+              className="flex items-center justify-between"
+              onClick={() => router.push("/user/notifications")}
+            >
               <div className="flex items-center gap-2">
                 <BellIcon className="h-4 w-4 text-white/40" />
                 <span className="text-sm text-white/40">Notifications</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white/40 hover:text-white hover:bg-white/5"
-                onClick={() => router.push("/user/notifications")}
-              >
-                {loading ? (
-                  <Skeleton className="h-4 w-8 bg-white/10" />
-                ) : (
-                  `${stats?.totalNotifications || 0} unread`
+                {!loading && (stats?.totalNotifications || 0) > 0 && (
+                  <Badge className="bg-red-500 text-white border-red-500 text-[10px]">
+                    {stats?.totalNotifications}
+                  </Badge>
                 )}
-              </Button>
+              </div>
+              <div className="flex items-center gap-1 text-white/40 hover:text-white">
+                <span className="text-xs">
+                  {loading ? (
+                    <Skeleton className="h-4 w-8 bg-white/10" />
+                  ) : (
+                    `${stats?.totalNotifications || 0} unread`
+                  )}
+                </span>
+                <ArrowRightIcon className="h-3.5 w-3.5" />
+              </div>
             </div>
+
+            {/* ✅ Show recent notifications */}
+            {!loading && notifications.length > 0 && (
+              <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                {notifications.slice(0, 3).map((notification) => {
+                  const Icon = notificationIconMap[notification.type] || InfoIcon;
+                  const color = notificationColorMap[notification.type] || "text-blue-400";
+                  return (
+                    <div
+                      key={notification.id}
+                      className="flex items-start gap-2 rounded-md p-2 hover:bg-white/5 cursor-pointer transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNotificationClick(notification);
+                      }}
+                    >
+                      <Icon className={`h-3.5 w-3.5 mt-0.5 ${color}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-white truncate">{notification.title}</p>
+                        <p className="text-[10px] text-white/40 truncate">
+                          {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                        </p>
+                      </div>
+                      {!notification.read && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 mt-1" />
+                      )}
+                    </div>
+                  );
+                })}
+                {notifications.length > 3 && (
+                  <p className="text-[10px] text-white/30 text-center hover:text-white/60 cursor-pointer">
+                    +{notifications.length - 3} more notifications
+                  </p>
+                )}
+              </div>
+            )}
           </Card>
         </div>
       </div>

@@ -31,82 +31,27 @@ const docsGroups = [
   {
     label: "Start here",
     items: [
-      {
-        title: "Getting Started",
-        description: "Set up your first PlanMod project",
-        href: "/docs",
-        icon: Rocket,
-      },
-      {
-        title: "Installation",
-        description: "Install the CLI and dependencies",
-        href: "/docs/installation",
-        icon: BookOpen,
-      },
+      { title: "Getting Started", href: "/docs", icon: Rocket },
+      { title: "Installation", href: "/docs/installation", icon: BookOpen },
     ],
   },
   {
     label: "Mod loaders",
     items: [
-      {
-        title: "Fabric",
-        description: "Lightweight, modular loader",
-        href: "/docs/fabric",
-        icon: Blocks,
-      },
-      {
-        title: "Forge",
-        description: "The original modding platform",
-        href: "/docs/forge",
-        icon: Blocks,
-      },
-      {
-        title: "NeoForge",
-        description: "Community-driven Forge fork",
-        href: "/docs/neoforge",
-        icon: Blocks,
-      },
-      {
-        title: "Paper",
-        description: "High-performance server software",
-        href: "/docs/paper",
-        icon: Box,
-      },
-      {
-        title: "Bedrock",
-        description: "Add-ons for Bedrock Edition",
-        href: "/docs/bedrock",
-        icon: Box,
-      },
+      { title: "Fabric", href: "/docs/fabric", icon: Blocks },
+      { title: "Forge", href: "/docs/forge", icon: Blocks },
+      { title: "NeoForge", href: "/docs/neoforge", icon: Blocks },
+      { title: "Paper", href: "/docs/paper", icon: Box },
+      { title: "Bedrock", href: "/docs/bedrock", icon: Box },
     ],
   },
   {
     label: "Tools & integrations",
     items: [
-      {
-        title: "GitHub Integration",
-        description: "Publish generated projects directly",
-        href: "/docs/github",
-        icon: GithubIcon,
-      },
-      {
-        title: "ZIP Generator",
-        description: "Download a ready-to-build archive",
-        href: "/docs/zip",
-        icon: FileArchive,
-      },
-      {
-        title: "Open in VS Code",
-        description: "Jump straight into your editor",
-        href: "/docs/vscode",
-        icon: Code2,
-      },
-      {
-        title: "API Reference",
-        description: "Automate template generation",
-        href: "/docs/api",
-        icon: Settings,
-      },
+      { title: "GitHub Integration", href: "/docs/github", icon: GithubIcon },
+      { title: "ZIP Generator", href: "/docs/zip", icon: FileArchive },
+      { title: "Open in VS Code", href: "/docs/vscode", icon: Code2 },
+      { title: "API Reference", href: "/docs/api", icon: Settings },
     ],
   },
 ];
@@ -115,10 +60,19 @@ export function DocsDropdown() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDocsActive = pathname.startsWith("/docs");
 
-  // Close on outside click and on Escape, on top of the existing hover/click toggle
+  const openNow = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setIsOpen(true);
+  };
+
+  const closeWithDelay = () => {
+    closeTimer.current = setTimeout(() => setIsOpen(false), 120);
+  };
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -130,7 +84,6 @@ export function DocsDropdown() {
         setIsOpen(false);
       }
     };
-
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsOpen(false);
     };
@@ -143,12 +96,18 @@ export function DocsDropdown() {
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, []);
+
   return (
     <div
       ref={containerRef}
       className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={openNow}
+      onMouseLeave={closeWithDelay}
     >
       {/* Docs Button */}
       <button
@@ -171,29 +130,25 @@ export function DocsDropdown() {
         )}
       </button>
 
-      {/* Dropdown Menu — solid panel, no see-through backdrop */}
-      {isOpen && (
-        <div
-          role="menu"
-          className="animate-in fade-in slide-in-from-top-2 absolute left-0 top-full z-50 mt-2 w-[560px] max-w-[92vw] overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0b] shadow-2xl shadow-black/70 duration-200"
-        >
-          <div className="grid grid-cols-2 gap-x-2 gap-y-5 p-4">
+      {/* Full-width panel, menyatu dengan navbar */}
+      <div
+        role="menu"
+        aria-hidden={!isOpen}
+        className={`fixed inset-x-0 top-16 z-40 origin-top border-b border-white/[0.08] bg-black shadow-[0_24px_48px_-20px_rgba(0,0,0,0.9)] transition-all duration-200 ease-out ${
+          isOpen
+            ? "pointer-events-auto translate-y-0 opacity-100"
+            : "pointer-events-none -translate-y-1 opacity-0"
+        }`}
+      >
+        <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6">
+          <div className="flex flex-wrap gap-x-16 gap-y-6">
             {docsGroups.map((group) => (
-              <div
-                key={group.label}
-                className={group.items.length > 3 ? "col-span-2" : "col-span-1"}
-              >
-                <p className="px-2 pb-2 font-mono text-[11px] uppercase tracking-widest text-white/35">
+              <div key={group.label} className="min-w-[160px]">
+                <p className="mb-2.5 font-mono text-[11px] font-medium uppercase tracking-wider text-white/40">
                   {group.label}
                 </p>
 
-                <div
-                  className={
-                    group.items.length > 3
-                      ? "grid grid-cols-2 gap-1"
-                      : "flex flex-col gap-1"
-                  }
-                >
+                <div className="flex flex-col gap-0.5">
                   {group.items.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
@@ -203,32 +158,24 @@ export function DocsDropdown() {
                         key={item.href}
                         href={item.href}
                         role="menuitem"
-                        className={`group flex items-start gap-3 rounded-lg px-2 py-2 transition-colors duration-150 ${
-                          isActive ? "bg-white/[0.08]" : "hover:bg-white/[0.06]"
-                        }`}
+                        className="group -mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors duration-150 hover:bg-white/[0.06]"
                         onClick={() => setIsOpen(false)}
                       >
-                        <span
-                          className={`flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors duration-150 ${
+                        <Icon
+                          className={`size-[15px] shrink-0 transition-colors duration-150 ${
                             isActive
-                              ? "border-white/20 bg-white/10 text-white"
-                              : "border-white/10 bg-white/[0.04] text-[#a1a1a1] group-hover:border-white/20 group-hover:text-white"
+                              ? "text-white"
+                              : "text-[#767676] group-hover:text-white"
+                          }`}
+                        />
+                        <span
+                          className={`whitespace-nowrap text-[13px] font-medium transition-colors duration-150 ${
+                            isActive
+                              ? "text-white"
+                              : "text-[#c9c9c9] group-hover:text-white"
                           }`}
                         >
-                          <Icon className="size-4" />
-                        </span>
-
-                        <span className="min-w-0">
-                          <span
-                            className={`block text-[13px] font-medium ${
-                              isActive ? "text-white" : "text-[#e5e5e5] group-hover:text-white"
-                            }`}
-                          >
-                            {item.title}
-                          </span>
-                          <span className="block truncate text-[12px] text-[#8a8a8a]">
-                            {item.description}
-                          </span>
+                          {item.title}
                         </span>
                       </Link>
                     );
@@ -238,18 +185,18 @@ export function DocsDropdown() {
             ))}
           </div>
 
-          <div className="h-px bg-white/10" />
-
-          <Link
-            href="/docs"
-            className="flex items-center justify-between bg-white/[0.02] px-5 py-3 text-[13px] font-medium text-[#a1a1a1] transition-colors duration-150 hover:bg-white/[0.06] hover:text-white"
-            onClick={() => setIsOpen(false)}
-          >
-            <span>View all documentation</span>
-            <ArrowRight className="size-3.5" />
-          </Link>
+          <div className="mt-6 border-t border-white/[0.08] pt-4">
+            <Link
+              href="/docs"
+              className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-[#a1a1a1] transition-colors duration-150 hover:text-white"
+              onClick={() => setIsOpen(false)}
+            >
+              <span>View all documentation</span>
+              <ArrowRight className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
+            </Link>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-// app/api/admin/versions/route.ts
+// app/api/admin/versions/route.ts - Perbaiki juga yang ini
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -107,7 +107,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// app/api/admin/versions/route.ts (add POST)
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

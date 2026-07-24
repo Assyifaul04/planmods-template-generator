@@ -1,7 +1,7 @@
 // app/admin/templates/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -50,6 +50,7 @@ import {
   Check,
   X,
   Plus,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -96,6 +97,7 @@ export default function TemplatesPage() {
   const router = useRouter();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -111,6 +113,7 @@ export default function TemplatesPage() {
   const fetchTemplates = async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "10",
@@ -120,12 +123,31 @@ export default function TemplatesPage() {
       });
       
       const response = await fetch(`/api/admin/templates?${params}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch templates");
+      }
+      
       const data = await response.json();
-      setTemplates(data.templates);
-      setTotalPages(data.pagination.totalPages);
+      
+      const templatesData = Array.isArray(data.templates) ? data.templates : [];
+      
+      const validTemplates = templatesData.map((template: any) => ({
+        ...template,
+        _count: template._count || { projects: 0 },
+        tags: Array.isArray(template.tags) ? template.tags : [],
+        usageCount: template.usageCount || 0,
+        templateRepo: template.templateRepo || null,
+        mcVersionData: template.mcVersionData || null,
+      }));
+      
+      setTemplates(validTemplates);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch (error) {
-      console.error("Error fetching templates:", error);
-      toast.error("Failed to fetch templates");
+      console.error("❌ Error fetching templates:", error);
+      setError(error instanceof Error ? error.message : "Failed to fetch templates");
+      toast.error(error instanceof Error ? error.message : "Failed to fetch templates");
     } finally {
       setLoading(false);
     }
@@ -139,13 +161,16 @@ export default function TemplatesPage() {
         body: JSON.stringify({ isFeatured }),
       });
 
-      if (!response.ok) throw new Error("Failed to update featured status");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to update featured status");
+      }
 
       toast.success(`Template ${isFeatured ? "featured" : "unfeatured"} successfully`);
       fetchTemplates();
     } catch (error) {
       console.error("Error updating featured status:", error);
-      toast.error("Failed to update featured status");
+      toast.error(error instanceof Error ? error.message : "Failed to update featured status");
     }
   };
 
@@ -157,13 +182,16 @@ export default function TemplatesPage() {
         body: JSON.stringify({ enabled }),
       });
 
-      if (!response.ok) throw new Error("Failed to update enabled status");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to update enabled status");
+      }
 
       toast.success(`Template ${enabled ? "enabled" : "disabled"} successfully`);
       fetchTemplates();
     } catch (error) {
       console.error("Error updating enabled status:", error);
-      toast.error("Failed to update enabled status");
+      toast.error(error instanceof Error ? error.message : "Failed to update enabled status");
     }
   };
 
@@ -207,6 +235,29 @@ export default function TemplatesPage() {
     };
     return colors[loader] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
   };
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03]">
+          <Package className="h-5 w-5 text-white/30" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium text-white/70">Error loading templates</p>
+          <p className="text-xs text-white/40 mt-1">{error}</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-white/10 text-white hover:bg-white/10"
+          onClick={fetchTemplates}
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Try Again
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 lg:px-6">
@@ -302,6 +353,15 @@ export default function TemplatesPage() {
                   <div className="flex flex-col items-center gap-2">
                     <Package className="h-12 w-12 text-white/20" />
                     <p>No templates found</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push("/admin/templates/new")}
+                      className="border-white/10 text-white hover:bg-white/10"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create your first template
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -315,8 +375,10 @@ export default function TemplatesPage() {
                           <Image
                             src={template.thumbnailUrl}
                             alt={template.name}
-                            fill
+                            width={40}
+                            height={40}
                             className="object-cover"
+                            unoptimized={true}
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center bg-white/5">
@@ -327,7 +389,7 @@ export default function TemplatesPage() {
                       <div>
                         <div className="text-white font-medium">{template.name}</div>
                         <div className="text-xs text-white/40">{template.slug}</div>
-                        {template.tags.length > 0 && (
+                        {template.tags && template.tags.length > 0 && (
                           <div className="flex gap-1 mt-1 flex-wrap">
                             {template.tags.slice(0, 2).map((t) => (
                               <Badge key={t.tag.id} variant="outline" className="text-[10px] text-white/40 border-white/10">
@@ -368,7 +430,7 @@ export default function TemplatesPage() {
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-white/60">{template.usageCount} uses</div>
-                    <div className="text-xs text-white/30">{template._count.projects} projects</div>
+                    <div className="text-xs text-white/30">{template._count?.projects || 0} projects</div>
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -392,6 +454,15 @@ export default function TemplatesPage() {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
+                        {template.repoUrl && (
+                          <DropdownMenuItem
+                            onClick={() => window.open(template.repoUrl!, "_blank")}
+                            className="hover:bg-white/10 cursor-pointer"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            View Repository
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                           onClick={() => handleToggleEnabled(template.id, !template.enabled)}
                           className="hover:bg-white/10 cursor-pointer"
@@ -458,7 +529,7 @@ export default function TemplatesPage() {
             <DialogTitle>Delete Template</DialogTitle>
             <DialogDescription className="text-white/60">
               Are you sure you want to delete "{selectedTemplate?.name}"? This action cannot be undone.
-              {selectedTemplate && selectedTemplate._count.projects > 0 && (
+              {selectedTemplate && selectedTemplate._count && selectedTemplate._count.projects > 0 && (
                 <span className="block mt-2 text-yellow-400">
                   ⚠️ This template is used by {selectedTemplate._count.projects} projects.
                 </span>

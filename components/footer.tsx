@@ -1,3 +1,4 @@
+// components/footer.tsx
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -62,81 +63,81 @@ const columns = [
 export function Footer() {
   return (
     <footer className="border-t border-white/10 bg-black">
-      <div className="mx-auto max-w-7xl px-6 py-16">
-        <div className="grid gap-12 md:grid-cols-6">
-          {/* Logo */}
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        <div className="grid gap-8 md:grid-cols-6">
+          {/* Logo - Diperkecil */}
           <div className="md:col-span-2">
             <Link
               href="/"
-              className="flex items-center gap-3"
+              className="flex items-center gap-2.5"
             >
-              <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden">
+              <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden">
                 <Image
                   src="/image/logo.png"
                   alt="Planmods"
-                  width={40}
-                  height={40}
+                  width={32}
+                  height={32}
                   className="object-contain"
                   priority
                 />
               </div>
 
               <div>
-                <h3 className="font-semibold tracking-tight text-white">
+                <h3 className="text-sm font-semibold tracking-tight text-white">
                   Planmods
                 </h3>
 
-                <p className="text-xs text-white/40">
+                <p className="text-[10px] text-white/40">
                   Template Generator
                 </p>
               </div>
             </Link>
 
-            <p className="mt-5 max-w-sm text-sm leading-7 text-white/60">
+            <p className="mt-3 max-w-sm text-xs leading-relaxed text-white/60">
               Generate professional Minecraft starter templates for
               Fabric, Forge, NeoForge, Paper, and Bedrock.
               Download as ZIP, publish directly to GitHub,
               and continue developing instantly in Visual Studio Code.
             </p>
 
-            <div className="mt-6 flex gap-3">
+            <div className="mt-4 flex gap-2">
               <Link
                 href="https://github.com"
-                className="rounded-lg border border-white/10 p-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+                className="rounded-md border border-white/10 p-1.5 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
                 target="_blank"
                 rel="noreferrer"
               >
-                <GithubIcon className="h-4 w-4" />
+                <GithubIcon className="h-3.5 w-3.5" />
               </Link>
 
               <Link
                 href="/docs"
-                className="rounded-lg border border-white/10 p-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+                className="rounded-md border border-white/10 p-1.5 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
               >
-                <BookOpen className="h-4 w-4" />
+                <BookOpen className="h-3.5 w-3.5" />
               </Link>
 
               <Link
                 href="/templates"
-                className="rounded-lg border border-white/10 p-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+                className="rounded-md border border-white/10 p-1.5 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
               >
-                <Code2 className="h-4 w-4" />
+                <Code2 className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
 
           {columns.map((column) => (
             <div key={column.title}>
-              <h4 className="font-mono text-xs uppercase tracking-[0.25em] text-white/40">
+              <h4 className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
                 {column.title}
               </h4>
 
-              <ul className="mt-5 space-y-3">
+              <ul className="mt-3 space-y-2">
                 {column.links.map((link) => (
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="text-sm text-white/60 transition-colors hover:text-white"
+                      className="text-xs text-white/60 transition-colors hover:text-white"
                     >
                       {link.label}
                     </Link>
@@ -147,15 +148,15 @@ export function Footer() {
           ))}
         </div>
 
-        <Separator className="my-10 bg-white/10" />
+        <Separator className="my-6 bg-white/10" />
 
-        <div className="flex flex-col gap-4 text-sm md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 text-xs md:flex-row md:items-center md:justify-between">
           <p className="text-white/40">
             © {new Date().getFullYear()} Planmods Template Generator.
             All rights reserved.
           </p>
 
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-4">
             <Link
               href="/privacy"
               className="text-white/40 transition-colors hover:text-white"

@@ -1,3 +1,4 @@
+// components/navbar.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DocsDropdown } from "@/components/docs/docs-dropdown";
+import { TemplatesDropdown } from "@/components/templates/dropdown-menu";
 
 // Komponen Icon GitHub (Inline SVG) agar bebas dari error import
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -44,12 +46,12 @@ const GithubIcon = ({ className }: { className?: string }) => (
 
 const guestNavItems = [
   { href: "/features", label: "Features" },
-  { href: "/templates", label: "Templates" },
+  // Templates sudah di-handle oleh TemplatesDropdown
   { href: "/changelog", label: "Changelog" },
 ];
 
 const userNavItems = [
-  { href: "/templates", label: "Templates" },
+  // Templates sudah di-handle oleh TemplatesDropdown
 ];
 
 // Function to get account menu items based on user role
@@ -67,11 +69,7 @@ const getAccountMenuItems = (role?: string) => {
 
 const GITHUB_URL = "https://github.com/your-org/your-repo";
 
-export function Navbar({
-  hasNotifications = false,
-}: {
-  hasNotifications?: boolean;
-}) {
+export function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -153,6 +151,9 @@ export function Navbar({
               );
             })}
 
+            {/* ✅ Templates Dropdown */}
+            <TemplatesDropdown />
+
             {/* Docs Dropdown */}
             <DocsDropdown />
 
@@ -190,7 +191,8 @@ export function Navbar({
             </>
           ) : (
             <div className="hidden items-center gap-1.5 sm:flex">
-              <Link
+              {/* ❌ Hapus icon Notifikasi */}
+              {/* <Link
                 href="/notifications"
                 aria-label="Notifications"
                 className="relative flex size-9 items-center justify-center rounded-full text-[#a1a1a1] transition-colors duration-200 hover:bg-white/[0.06] hover:text-white"
@@ -199,7 +201,7 @@ export function Navbar({
                 {hasNotifications && (
                   <span className="absolute right-2 top-2 size-1.5 rounded-full bg-red-500 ring-2 ring-black" />
                 )}
-              </Link>
+              </Link> */}
 
               <Link
                 href={GITHUB_URL}
@@ -317,6 +319,18 @@ export function Navbar({
                 </li>
               );
             })}
+
+            {/* Templates for mobile */}
+            <li>
+              <Link
+                href="/templates"
+                onClick={() => setOpen(false)}
+                className="flex items-center rounded-lg px-3 py-2.5 text-sm font-medium text-[#a1a1a1] transition-colors duration-200 hover:bg-white/[0.06] hover:text-white"
+              >
+                <Layers className="mr-2 h-4 w-4" />
+                Templates
+              </Link>
+            </li>
 
             {/* Docs link for mobile */}
             <li>

@@ -6,9 +6,13 @@ import prisma from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
+    console.log("🚀 [API] Fetching templates...");
+    
     const session = await getServerSession(authOptions);
+    console.log("👤 Session:", session?.user?.email, "Role:", session?.user?.role);
     
     if (!session || session.user.role !== "ADMIN") {
+      console.log("❌ [API] Unauthorized");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -21,6 +25,8 @@ export async function GET(request: NextRequest) {
     const isFeatured = searchParams.get("isFeatured");
     const enabled = searchParams.get("enabled");
     const templateRepoId = searchParams.get("templateRepoId");
+
+    console.log("📊 Params:", { page, limit, search, platform, loader, isFeatured, enabled, templateRepoId });
 
     const skip = (page - 1) * limit;
 
@@ -54,70 +60,83 @@ export async function GET(request: NextRequest) {
       where.templateRepoId = templateRepoId;
     }
 
-    const [templates, total] = await Promise.all([
-      prisma.template.findMany({
-        where,
-        include: {
-          templateRepo: {
-            select: {
-              id: true,
-              repoUrl: true,
-              platform: true,
-              loader: true,
+    console.log("🔍 Where clause:", JSON.stringify(where, null, 2));
+
+    try {
+      console.log("📦 Fetching templates from database...");
+      const [templates, total] = await Promise.all([
+        prisma.template.findMany({
+          where,
+          include: {
+            templateRepo: {
+              select: {
+                id: true,
+                repoUrl: true,
+                platform: true,
+                loader: true,
+              },
             },
-          },
-          mcVersionData: {
-            select: {
-              version: true,
-              platform: true,
-              isLatest: true,
+            mcVersionData: {
+              select: {
+                version: true,
+                platform: true,
+                isLatest: true,
+              },
             },
-          },
-          LoaderMinecraftVersion: {
-            select: {
-              id: true,
-              loader: true,
-              loaderVersion: true,
-              recommended: true,
+            LoaderMinecraftVersion: {
+              select: {
+                id: true,
+                loader: true,
+                loaderVersion: true,
+                recommended: true,
+              },
             },
-          },
-          tags: {
-            include: {
-              tag: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
+            tags: {
+              include: {
+                tag: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                  },
                 },
               },
             },
-          },
-          _count: {
-            select: {
-              projects: true,
+            _count: {
+              select: {
+                projects: true,
+              },
             },
           },
-        },
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.template.count({ where }),
-    ]);
+          skip,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.template.count({ where }),
+      ]);
 
-    return NextResponse.json({
-      templates,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+      console.log(`✅ [API] Found ${templates.length} templates, total: ${total}`);
+
+      return NextResponse.json({
+        templates,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (dbError) {
+      console.error("❌ [API] Database error:", dbError);
+      throw dbError;
+    }
   } catch (error) {
-    console.error("Error fetching templates:", error);
+    console.error("❌ [API] Error fetching templates:", error);
     return NextResponse.json(
-      { error: "Failed to fetch templates" },
+      { 
+        error: error instanceof Error ? error.message : "Failed to fetch templates",
+        details: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
@@ -125,13 +144,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("🚀 [API] Creating template...");
+    
     const session = await getServerSession(authOptions);
+    console.log("👤 Session:", session?.user?.email, "Role:", session?.user?.role);
     
     if (!session || session.user.role !== "ADMIN") {
+      console.log("❌ [API] Unauthorized");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
+    console.log("📦 Request body:", JSON.stringify(body, null, 2));
 
     const {
       name,
@@ -162,6 +186,7 @@ export async function POST(request: NextRequest) {
     if (!path || path.trim() === "") errors.push("path");
 
     if (errors.length > 0) {
+      console.log("❌ [API] Missing fields:", errors);
       return NextResponse.json(
         { error: `Missing required fields: ${errors.join(", ")}` },
         { status: 400 }
@@ -169,11 +194,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if Minecraft version exists - if not, create it automatically
+    console.log("🔍 Checking Minecraft version:", minecraftVersion);
     let versionExists = await prisma.minecraftVersion.findUnique({
       where: { version: minecraftVersion },
     });
 
     if (!versionExists) {
+      console.log("📦 Creating Minecraft version:", minecraftVersion);
       versionExists = await prisma.minecraftVersion.create({
         data: {
           version: minecraftVersion,
@@ -186,11 +213,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if slug is unique
+    console.log("🔍 Checking slug uniqueness:", slug);
     const existingTemplate = await prisma.template.findUnique({
       where: { slug },
     });
 
     if (existingTemplate) {
+      console.log("❌ [API] Slug already exists:", slug);
       return NextResponse.json(
         { error: `Template with slug "${slug}" already exists` },
         { status: 400 }
@@ -200,11 +229,13 @@ export async function POST(request: NextRequest) {
     // Check if loaderMinecraftVersionId exists if provided
     let validLoaderVersionId = null;
     if (loaderMinecraftVersionId && loaderMinecraftVersionId.trim() !== "") {
+      console.log("🔍 Checking loader version:", loaderMinecraftVersionId);
       const loaderVersionExists = await prisma.loaderMinecraftVersion.findUnique({
         where: { id: loaderMinecraftVersionId },
       });
       
       if (!loaderVersionExists) {
+        console.log("❌ [API] Loader version not found:", loaderMinecraftVersionId);
         return NextResponse.json(
           { error: `Loader Minecraft version with ID "${loaderMinecraftVersionId}" does not exist` },
           { status: 400 }
@@ -231,11 +262,14 @@ export async function POST(request: NextRequest) {
 
     // Only include templateRepoId if it's a valid non-empty string
     if (templateRepoId && templateRepoId.trim() !== "") {
+      console.log("🔍 Checking template repo:", templateRepoId);
       const repoExists = await prisma.templateRepo.findUnique({
         where: { id: templateRepoId },
       });
       if (repoExists) {
         data.templateRepoId = templateRepoId;
+      } else {
+        console.log("⚠️ [API] Template repo not found:", templateRepoId);
       }
     }
 
@@ -243,6 +277,8 @@ export async function POST(request: NextRequest) {
     if (validLoaderVersionId) {
       data.loaderMinecraftVersionId = validLoaderVersionId;
     }
+
+    console.log("📦 Creating template with data:", JSON.stringify(data, null, 2));
 
     const template = await prisma.template.create({
       data: {
@@ -264,6 +300,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log("✅ [API] Template created:", template.id, template.name);
+
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
@@ -277,7 +315,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(template);
   } catch (error: any) {
-    console.error("Error creating template:", error);
+    console.error("❌ [API] Error creating template:", error);
     
     if (error.code === 'P2003') {
       return NextResponse.json(
@@ -294,7 +332,10 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { error: error.message || "Failed to create template" },
+      { 
+        error: error.message || "Failed to create template",
+        details: error.stack
+      },
       { status: 500 }
     );
   }

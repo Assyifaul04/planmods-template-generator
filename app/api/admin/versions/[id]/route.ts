@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,8 +15,10 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const version = await prisma.minecraftVersion.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         loaderVersions: {
           include: {
@@ -82,10 +84,9 @@ export async function GET(
   }
 }
 
-// app/api/admin/versions/[id]/route.ts (add PATCH)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -94,11 +95,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { version, platform, isLatest, isSnapshot, releaseDate } = body;
 
     const existingVersion = await prisma.minecraftVersion.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingVersion) {
@@ -119,7 +121,7 @@ export async function PATCH(
     }
 
     const updatedVersion = await prisma.minecraftVersion.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         version,
         platform,
@@ -133,7 +135,7 @@ export async function PATCH(
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
-        action: `UPDATED_VERSION_${params.id}`,
+        action: `UPDATED_VERSION_${id}`,
         metadata: {
           version: updatedVersion.version,
           updatedFields: Object.keys(body),
@@ -152,10 +154,9 @@ export async function PATCH(
   }
 }
 
-// app/api/admin/versions/[id]/route.ts (add DELETE)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -164,8 +165,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const existingVersion = await prisma.minecraftVersion.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -193,13 +196,13 @@ export async function DELETE(
     }
 
     await prisma.minecraftVersion.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
-        action: `DELETED_VERSION_${params.id}`,
+        action: `DELETED_VERSION_${id}`,
         metadata: {
           version: existingVersion.version,
           platform: existingVersion.platform,
