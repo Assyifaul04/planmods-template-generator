@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
 
     const where: any = {
       userId: session.user.id,
-      // Exclude archived projects from list
       status: {
         not: "ARCHIVED"
       }
@@ -53,6 +52,19 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
+            },
+          },
+          // ✅ TAMBAHKAN INI - Include githubRepository
+          githubRepository: {
+            select: {
+              id: true,
+              repositoryName: true,
+              repositoryUrl: true,
+              cloneUrl: true,
+              defaultBranch: true,
+              private: true,
+              lastSyncedAt: true,
+              createdAt: true,
             },
           },
           _count: {

@@ -52,6 +52,9 @@ import {
   FileSpreadsheet,
   Sparkles,
   X,
+  AlertTriangle,
+  Info,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -112,21 +115,21 @@ interface ProjectDetail {
 
 // ✅ Fungsi untuk deteksi OS
 function getOS() {
-  if (typeof window === 'undefined') return 'unknown';
-  
+  if (typeof window === "undefined") return "unknown";
+
   const userAgent = window.navigator.userAgent.toLowerCase();
   const platform = window.navigator.platform.toLowerCase();
-  
-  if (userAgent.includes('win') || platform.includes('win')) {
-    return 'windows';
+
+  if (userAgent.includes("win") || platform.includes("win")) {
+    return "windows";
   }
-  if (userAgent.includes('mac') || platform.includes('mac')) {
-    return 'mac';
+  if (userAgent.includes("mac") || platform.includes("mac")) {
+    return "mac";
   }
-  if (userAgent.includes('linux') || platform.includes('linux')) {
-    return 'linux';
+  if (userAgent.includes("linux") || platform.includes("linux")) {
+    return "linux";
   }
-  return 'unknown';
+  return "unknown";
 }
 
 // ✅ Fungsi untuk mendapatkan build command sesuai OS
@@ -149,7 +152,7 @@ function getBuildCommands(projectName: string, os: string) {
       `./gradlew build`,
     ],
   };
-  
+
   return commands[os as keyof typeof commands] || commands.windows;
 }
 
@@ -172,9 +175,9 @@ export default function ProjectDetailPage({
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(),
   );
-  const [userRole, setUserRole] = useState<"OWNER" | "EDITOR" | "VIEWER" | null>(
-    null,
-  );
+  const [userRole, setUserRole] = useState<
+    "OWNER" | "EDITOR" | "VIEWER" | null
+  >(null);
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [showBuildDialog, setShowBuildDialog] = useState(false);
@@ -250,7 +253,7 @@ export default function ProjectDetailPage({
         setUserRole("OWNER");
       } else {
         const collaborator = data.collaborators?.find(
-          (c: any) => c.userId === session?.user?.id
+          (c: any) => c.userId === session?.user?.id,
         );
         if (collaborator) {
           setUserRole(collaborator.role);
@@ -368,14 +371,13 @@ export default function ProjectDetailPage({
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success("Download started!");
 
       // ✅ TAMPILKAN BUILD COMMAND POPUP
       const commands = getBuildCommands(project?.slug || "project", osType);
       setBuildCommands(commands);
       setShowBuildDialog(true);
-      
     } catch (error) {
       console.error("Error downloading:", error);
       toast.error("Failed to download project");
@@ -559,10 +561,7 @@ export default function ProjectDetailPage({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-2.5 text-sm text-white/40">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-white/60" />
-          Loading project…
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin text-white/40" />
       </div>
     );
   }
@@ -591,15 +590,19 @@ export default function ProjectDetailPage({
     );
   }
 
-  const canEdit = userRole === "OWNER" || userRole === "EDITOR" || session?.user?.role === "ADMIN";
+  const canEdit =
+    userRole === "OWNER" ||
+    userRole === "EDITOR" ||
+    session?.user?.role === "ADMIN";
 
   // ✅ OS Display Name
-  const osDisplayName = {
-    windows: "Windows",
-    mac: "macOS",
-    linux: "Linux",
-    unknown: "Unknown",
-  }[osType] || "Unknown";
+  const osDisplayName =
+    {
+      windows: "Windows",
+      mac: "macOS",
+      linux: "Linux",
+      unknown: "Unknown",
+    }[osType] || "Unknown";
 
   return (
     <div className="space-y-6">
@@ -731,7 +734,9 @@ export default function ProjectDetailPage({
                 <Layers className="h-3.5 w-3.5" />
                 Platform
               </div>
-              <p className="mt-1 text-sm font-medium text-white">{project.platform}</p>
+              <p className="mt-1 text-sm font-medium text-white">
+                {project.platform}
+              </p>
               <p className="text-[11px] text-white/30">{project.loader}</p>
             </div>
             <div className="flex flex-col">
@@ -742,7 +747,9 @@ export default function ProjectDetailPage({
               <p className="mt-1 text-sm font-medium text-white font-mono truncate">
                 {project.packageName}
               </p>
-              <p className="text-[11px] text-white/30">Mod ID: {project.modId}</p>
+              <p className="text-[11px] text-white/30">
+                Mod ID: {project.modId}
+              </p>
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2 text-xs text-white/40">
@@ -763,7 +770,9 @@ export default function ProjectDetailPage({
                 <User className="h-3.5 w-3.5" />
                 Author
               </div>
-              <p className="mt-1 text-sm font-medium text-white truncate">{project.author}</p>
+              <p className="mt-1 text-sm font-medium text-white truncate">
+                {project.author}
+              </p>
               <p className="text-[11px] text-white/30">v{project.version}</p>
             </div>
           </div>
@@ -801,9 +810,9 @@ export default function ProjectDetailPage({
 
               <div
                 onMouseDown={handleResizerMouseDown}
-                className="hidden lg:flex w-1 bg-transparent hover:bg-blue-500/50 cursor-col-resize z-10 transition-colors duration-150 flex-col justify-center items-center group relative border-l border-white/5"
+                className="hidden lg:flex w-1 bg-transparent hover:bg-white/20 cursor-col-resize z-10 transition-colors duration-150 flex-col justify-center items-center group relative border-l border-white/5"
               >
-                <div className="w-1 h-8 rounded-full bg-white/20 group-hover:bg-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-1 h-8 rounded-full bg-white/20 group-hover:bg-white/60 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
 
               <div className="flex-1 flex flex-col min-w-0 bg-[#0a0a0a] relative">
@@ -836,7 +845,7 @@ export default function ProjectDetailPage({
                           className="h-7 w-7 text-white/40 hover:text-white hover:bg-white/10 rounded-md"
                         >
                           {copied ? (
-                            <Check className="h-3.5 w-3.5 text-green-400" />
+                            <Check className="h-3.5 w-3.5 text-white" />
                           ) : (
                             <Copy className="h-3.5 w-3.5" />
                           )}
@@ -846,7 +855,9 @@ export default function ProjectDetailPage({
                     <div className="flex-1 overflow-auto p-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
                       <pre className="text-[13px] leading-relaxed text-white/70 font-mono whitespace-pre-wrap break-all">
                         {fileContent || (
-                          <span className="text-white/20 italic">No content</span>
+                          <span className="text-white/20 italic">
+                            No content
+                          </span>
                         )}
                       </pre>
                     </div>
@@ -854,7 +865,9 @@ export default function ProjectDetailPage({
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full gap-3 text-white/30">
                     <Files className="h-16 w-16 opacity-20" />
-                    <p className="text-sm font-medium">Select a file to view its content</p>
+                    <p className="text-sm font-medium">
+                      Select a file to view its content
+                    </p>
                   </div>
                 )}
               </div>
@@ -909,18 +922,23 @@ export default function ProjectDetailPage({
         </CardContent>
       </Card>
 
-      {/* ✅ BUILD COMMAND POPUP */}
+      {/* ✅ BUILD COMMAND POPUP — Monokrom (Hitam/Putih) */}
       <Dialog open={showBuildDialog} onOpenChange={setShowBuildDialog}>
-        <DialogContent className="bg-black border-white/10 text-white max-w-2xl">
+        <DialogContent className="bg-black border-white/10 text-white w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-6">
           <DialogHeader>
             <DialogTitle className="text-white text-xl flex items-center gap-2">
-              <Terminal className="h-5 w-5 text-green-400" />
+              <Terminal className="h-5 w-5 text-white" />
               Build Your Project
             </DialogTitle>
             <DialogDescription className="text-white/60">
-              Your project has been downloaded! Follow these commands to build it.
+              Your project has been downloaded! Follow these commands to build
+              it.
               <span className="block mt-1 text-xs">
-                Detected OS: <Badge variant="outline" className="border-white/20 text-white/70">
+                Detected OS:{" "}
+                <Badge
+                  variant="outline"
+                  className="border-white/20 text-white/70"
+                >
                   {osDisplayName}
                 </Badge>
               </span>
@@ -931,43 +949,47 @@ export default function ProjectDetailPage({
             <div className="bg-black/60 rounded-lg border border-white/10 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <FolderOpen className="h-4 w-4 text-white/40" />
-                <span className="text-sm font-medium text-white/60">Extract and Build</span>
+                <span className="text-sm font-medium text-white/60">
+                  Extract and Build
+                </span>
               </div>
-              
+
               <div className="space-y-3">
                 {buildCommands.map((command, index) => {
-                  const isComment = command.startsWith('#');
-                  const isBlank = command.trim() === '';
-                  
+                  const isComment = command.startsWith("#");
+                  const isBlank = command.trim() === "";
+
                   if (isBlank) return <div key={index} className="h-1" />;
-                  
+
                   return (
-                    <div
-                      key={index}
-                      className="flex items-center gap-3 group"
-                    >
-                      <span className="text-xs text-white/20 font-mono select-none">
-                        {String(index + 1).padStart(2, '0')}
+                    <div key={index} className="flex items-center gap-2 group w-full">
+                      <span className="text-xs text-white/20 font-mono select-none shrink-0 w-4 text-right">
+                        {String(index + 1).padStart(2, "0")}
                       </span>
-                      <div className="flex-1 relative">
-                        <pre className={`text-sm font-mono py-2 px-3 rounded-md bg-black/40 border border-white/5 overflow-x-auto ${
-                          isComment ? 'text-white/40' : 'text-green-400'
-                        }`}>
+
+                      {/* ✅ PERBAIKAN: Gunakan overflow-hidden + min-w-0 + truncate untuk text yang panjang */}
+                      <div className="flex-1 relative min-w-0 overflow-hidden">
+                        <pre
+                          className={`text-sm font-mono py-2 px-3 rounded-md bg-black/40 border border-white/5 overflow-x-auto whitespace-pre-wrap break-words ${
+                            isComment ? "text-white/30" : "text-white/90"
+                          }`}
+                        >
                           {command}
                         </pre>
                       </div>
+
                       {!isComment && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-white/40 hover:text-white hover:bg-white/10 shrink-0"
+                          className="h-7 w-7 p-0 text-white/40 hover:text-white hover:bg-white/10 shrink-0"
                           onClick={() => handleCopyCommand(command, index)}
                           title="Copy command"
                         >
                           {copiedCommand === index ? (
-                            <Check className="h-4 w-4 text-green-400" />
+                            <Check className="h-3.5 w-3.5 text-white" />
                           ) : (
-                            <Copy className="h-4 w-4" />
+                            <Copy className="h-3.5 w-3.5" />
                           )}
                         </Button>
                       )}
@@ -977,25 +999,44 @@ export default function ProjectDetailPage({
               </div>
             </div>
 
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 flex items-start gap-3">
-              <div className="h-5 w-5 text-yellow-400 shrink-0 mt-0.5">⚠️</div>
-              <div className="text-xs text-yellow-400/80">
-                <p className="font-medium">First time building?</p>
+            <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 text-white/60 shrink-0 mt-0.5" />
+              <div className="text-xs text-white/60">
+                <p className="font-medium text-white/80">
+                  First time building?
+                </p>
                 <p className="mt-1">
-                  The first build may take a few minutes as it downloads dependencies.
-                  Make sure you have Java 21 installed.
+                  The first build may take a few minutes as it downloads
+                  dependencies. Make sure you have Java 21 installed.
                 </p>
               </div>
             </div>
 
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start gap-3">
-              <div className="h-5 w-5 text-blue-400 shrink-0 mt-0.5">💡</div>
-              <div className="text-xs text-blue-400/80">
-                <p className="font-medium">Quick tips:</p>
-                <ul className="list-disc list-inside mt-1 space-y-0.5">
-                  <li>Run <code className="bg-black/40 px-1 rounded">./gradlew build</code> to build the mod</li>
-                  <li>Run <code className="bg-black/40 px-1 rounded">./gradlew runClient</code> to test in Minecraft</li>
-                  <li>Find your mod JAR in <code className="bg-black/40 px-1 rounded">build/libs/</code></li>
+            <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-start gap-3">
+              <Info className="h-4 w-4 text-white/60 shrink-0 mt-0.5" />
+              <div className="text-xs text-white/60 w-full overflow-hidden">
+                <p className="font-medium text-white/80">Quick tips:</p>
+                <ul className="list-disc list-inside mt-1 space-y-1">
+                  <li className="break-words">
+                    Run{" "}
+                    <code className="bg-black/40 px-1 py-0.5 rounded text-white/80 whitespace-nowrap">
+                      ./gradlew build
+                    </code>{" "}
+                    to build the mod
+                  </li>
+                  <li className="break-words">
+                    Run{" "}
+                    <code className="bg-black/40 px-1 py-0.5 rounded text-white/80 whitespace-nowrap">
+                      ./gradlew runClient
+                    </code>{" "}
+                    to test in Minecraft
+                  </li>
+                  <li className="break-words">
+                    Find your mod JAR in{" "}
+                    <code className="bg-black/40 px-1 py-0.5 rounded text-white/80 whitespace-nowrap">
+                      build/libs/
+                    </code>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -1004,7 +1045,7 @@ export default function ProjectDetailPage({
           <DialogFooter>
             <Button
               onClick={() => setShowBuildDialog(false)}
-              className="bg-white text-black hover:bg-white/90"
+              className="bg-white text-black hover:bg-white/90 w-full sm:w-auto"
             >
               Got it!
             </Button>

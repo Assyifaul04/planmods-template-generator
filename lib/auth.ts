@@ -38,16 +38,33 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // ✅ Simpan githubId dan githubUsername ke User model
+      if (account?.provider === "github" && profile) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            githubId: account.providerAccountId,
+            githubUsername: (profile as any).login,
+          },
+        });
+      }
+      return true;
+    },
+
     async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
         token.role = user.role as "ADMIN" | "USER";
       }
-      // Store GitHub access token
+      
+      // ✅ Store GitHub access token saat login
       if (account && account.provider === "github") {
         token.githubAccessToken = account.access_token;
         token.githubId = account.providerAccountId;
+        token.githubUsername = (account as any).login || (user as any).name;
       }
+      
       return token;
     },
 
@@ -57,6 +74,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as "ADMIN" | "USER";
         session.githubAccessToken = token.githubAccessToken as string;
         session.githubId = token.githubId as string;
+        session.githubUsername = token.githubUsername as string;
       }
       return session;
     },

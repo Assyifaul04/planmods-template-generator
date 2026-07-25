@@ -35,9 +35,10 @@ import {
   ZapIcon,
   Play,
   LayersIcon,
+  LinkIcon,
+  WebhookIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
 
 type MenuItem = {
   title: string;
@@ -106,20 +107,9 @@ const menuSections: MenuSection[] = [
     defaultOpen: false,
     items: [
       {
-        title: "My Repositories",
-        url: "/user/github/repositories",
+        title: "Overview",
+        url: "/user/github",
         icon: GithubIcon,
-      },
-      {
-        title: "Connected Accounts",
-        url: "/user/github/accounts",
-        icon: GithubIcon,
-      },
-      { title: "Sync Status", url: "/user/github/sync", icon: GitBranchIcon },
-      {
-        title: "Webhook Status",
-        url: "/user/github/webhooks",
-        icon: GitBranchIcon,
       },
     ],
   },
@@ -132,8 +122,6 @@ const menuSections: MenuSection[] = [
     items: [
       { title: "Profile", url: "/user/profile", icon: UserIcon },
       { title: "Account Settings", url: "/user/account", icon: SettingsIcon },
-      { title: "Security", url: "/user/security", icon: ShieldIcon },
-      { title: "Billing & Plan", url: "/user/billing", icon: CreditCardIcon },
       {
         title: "API Keys",
         url: "/user/api-keys",

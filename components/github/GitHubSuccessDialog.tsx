@@ -2,7 +2,15 @@
 "use client";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Monitor, Copy, Check, Download, GitBranch, Loader2 } from "lucide-react";
+import {
+  Monitor,
+  Copy,
+  Check,
+  Download,
+  Loader2,
+  ExternalLink,
+  CheckCircle,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -30,8 +38,6 @@ export function GitHubSuccessDialog({
   const [urlCopied, setUrlCopied] = useState(false);
   const [newRepoCopied, setNewRepoCopied] = useState(false);
   const [existingRepoCopied, setExistingRepoCopied] = useState(false);
-  
-  // State untuk memilih HTTPS atau SSH
   const [protocol, setProtocol] = useState<"HTTPS" | "SSH">("HTTPS");
 
   const copy = async (text: string, setFlag: (v: boolean) => void) => {
@@ -45,7 +51,6 @@ export function GitHubSuccessDialog({
     }
   };
 
-  // Konversi HTTPS URL ke SSH URL secara sederhana
   const httpsUrl = cloneUrl || `https://github.com/user/${projectName}.git`;
   const sshUrl = httpsUrl.replace("https://github.com/", "git@github.com:");
   const currentUrl = protocol === "HTTPS" ? httpsUrl : sshUrl;
@@ -64,120 +69,166 @@ git push -u origin main`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
-        className="!max-w-[900px] w-[95vw] bg-[#0d1117] border border-[#30363d] p-0 text-[#c9d1d9] font-sans shadow-2xl [&>button]:hidden overflow-hidden"
-      >
-        <div className="flex flex-col bg-[#0d1117] rounded-lg">
-            
-          {/* Section 1: Quick setup */}
-          <div className="p-5 border-b border-[#30363d]">
-            <h3 className="font-semibold text-[16px] mb-4 text-white">
-              Quick setup — if you've done this kind of thing before
-            </h3>
-            
-            <div className="flex items-center gap-3 mb-4 text-[13px]">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#30363d] bg-[#21262d] hover:bg-[#30363d] font-medium text-[#c9d1d9] transition-colors">
-                <Monitor className="w-4 h-4" /> Set up in Desktop
-              </button>
-              
-              <span className="text-[#8b949e]">or</span>
-              
-              <div className="flex flex-1 items-center">
-                <div className="flex rounded-l-md border border-[#30363d] font-medium overflow-hidden">
-                  <button 
-                    onClick={() => setProtocol("HTTPS")}
-                    className={`px-3 py-1.5 border-r border-[#30363d] transition-colors ${protocol === "HTTPS" ? "bg-[#1f6feb]/10 text-[#58a6ff]" : "bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9]"}`}
-                  >
-                    HTTPS
-                  </button>
-                  <button 
-                    onClick={() => setProtocol("SSH")}
-                    className={`px-3 py-1.5 transition-colors ${protocol === "SSH" ? "bg-[#1f6feb]/10 text-[#58a6ff]" : "bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9]"}`}
-                  >
-                    SSH
-                  </button>
-                </div>
-                
-                <div className="flex flex-1 items-center border-y border-r border-[#30363d] rounded-r-md bg-[#010409] overflow-hidden group focus-within:border-[#58a6ff]">
-                  <input 
-                    type="text" 
-                    value={currentUrl} 
-                    readOnly 
-                    className="flex-1 bg-transparent px-3 py-1.5 text-[13px] text-[#8b949e] outline-none"
-                  />
-                  <button 
-                    onClick={() => copy(currentUrl, setUrlCopied)}
-                    className="px-2.5 py-1.5 border-l border-[#30363d] bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] hover:text-[#c9d1d9] transition-colors h-full flex items-center justify-center"
-                    aria-label="Copy to clipboard"
-                  >
-                    {urlCopied ? <Check className="w-4 h-4 text-[#3fb950]"/> : <Copy className="w-4 h-4"/>}
-                  </button>
+      <DialogContent className="!max-w-[720px] w-[95vw] bg-white border border-black/10 p-0 text-black font-sans shadow-2xl [&>button]:hidden overflow-hidden rounded-xl max-h-[85vh] flex flex-col">
+        <div className="flex flex-col bg-white rounded-xl min-h-0">
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-black/10 flex items-start justify-between gap-4 shrink-0">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-7 h-7 rounded-full bg-black text-white shrink-0">
+                  <CheckCircle className="w-4 h-4" />
+                </span>
+                <h2 className="text-lg font-semibold text-black">
+                  Repository created
+                </h2>
+              </div>
+              <p className="text-sm text-black/50 mt-1.5 truncate">
+                {projectName} ·{" "}
+                <a
+                  href={repoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-black underline underline-offset-2 hover:text-black/70"
+                >
+                  {repoUrl.replace("https://", "")}
+                </a>
+              </p>
+            </div>
+            <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border border-black/10 bg-black/5 text-black">
+              Success
+            </span>
+          </div>
+
+          {/* Scrollable body */}
+          <div className="overflow-y-auto">
+            {/* Section 1: Quick setup */}
+            <div className="px-6 py-5 border-b border-black/10">
+              <h3 className="font-medium text-[14px] mb-3 text-black/70">
+                Quick setup
+              </h3>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-[13px]">
+                <button className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-black/15 bg-white hover:bg-black/5 font-medium text-black transition-colors shrink-0">
+                  <Monitor className="w-4 h-4" /> Desktop
+                </button>
+
+                <div className="flex flex-1 items-stretch min-w-0">
+                  <div className="flex rounded-l-md border border-black/15 font-medium overflow-hidden shrink-0">
+                    <button
+                      onClick={() => setProtocol("HTTPS")}
+                      className={`px-3 py-2 border-r border-black/15 transition-colors ${
+                        protocol === "HTTPS"
+                          ? "bg-black text-white"
+                          : "bg-white hover:bg-black/5 text-black"
+                      }`}
+                    >
+                      HTTPS
+                    </button>
+                    <button
+                      onClick={() => setProtocol("SSH")}
+                      className={`px-3 py-2 transition-colors ${
+                        protocol === "SSH"
+                          ? "bg-black text-white"
+                          : "bg-white hover:bg-black/5 text-black"
+                      }`}
+                    >
+                      SSH
+                    </button>
+                  </div>
+
+                  <div className="flex flex-1 items-center border-y border-r border-black/15 rounded-r-md bg-black/[0.03] overflow-hidden min-w-0 focus-within:border-black">
+                    <input
+                      type="text"
+                      value={currentUrl}
+                      readOnly
+                      className="flex-1 bg-transparent px-3 py-2 text-[13px] text-black/60 outline-none min-w-0"
+                    />
+                    <button
+                      onClick={() => copy(currentUrl, setUrlCopied)}
+                      className="px-2.5 py-2 border-l border-black/15 bg-white hover:bg-black/5 text-black/60 hover:text-black transition-colors h-full flex items-center justify-center shrink-0"
+                      aria-label="Copy to clipboard"
+                    >
+                      {urlCopied ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <p className="text-[13px] text-[#8b949e]">
-              Get started by <a href="#" className="text-[#58a6ff] hover:underline">creating a new file</a> or <a href="#" className="text-[#58a6ff] hover:underline">uploading an existing file</a>. We recommend every repository include a <a href="#" className="text-[#58a6ff] hover:underline">README</a>, <a href="#" className="text-[#58a6ff] hover:underline">LICENSE</a>, and <a href="#" className="text-[#58a6ff] hover:underline">.gitignore</a>.
-            </p>
-          </div>
+            {/* Section 2: Create a new repository */}
+            <div className="px-6 py-5 border-b border-black/10">
+              <h3 className="font-medium text-[14px] mb-3 text-black/70">
+                …or create a new repository on the command line
+              </h3>
 
-          {/* Section 2: Create a new repository */}
-          <div className="p-5 border-b border-[#30363d]">
-            <h3 className="font-semibold text-[16px] mb-4 text-white">
-              ...or create a new repository on the command line
-            </h3>
-            
-            <div className="relative rounded-md border border-[#30363d] bg-[#0d1117] p-4 group">
-              <button 
-                onClick={() => copy(newRepoCommands, setNewRepoCopied)}
-                className="absolute top-3 right-3 p-1.5 rounded-md text-[#8b949e] hover:text-[#c9d1d9] hover:bg-[#30363d] bg-[#21262d] border border-[#30363d] opacity-0 group-hover:opacity-100 transition-all"
-              >
-                {newRepoCopied ? <Check className="w-4 h-4 text-[#3fb950]"/> : <Copy className="w-4 h-4"/>}
-              </button>
-              <pre className="text-[13px] font-mono text-[#e6edf3] leading-snug whitespace-pre">
-                {newRepoCommands}
-              </pre>
+              <div className="relative rounded-md border border-black/15 bg-black/[0.03] p-4 group">
+                <button
+                  onClick={() => copy(newRepoCommands, setNewRepoCopied)}
+                  className="absolute top-3 right-3 p-1.5 rounded-md text-black/50 hover:text-black hover:bg-black/10 bg-white border border-black/15 opacity-0 group-hover:opacity-100 transition-all"
+                  aria-label="Copy commands"
+                >
+                  {newRepoCopied ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </button>
+                <pre className="text-[13px] font-mono text-black leading-relaxed whitespace-pre-wrap break-all">
+                  {newRepoCommands}
+                </pre>
+              </div>
+            </div>
+
+            {/* Section 3: Push an existing repository */}
+            <div className="px-6 py-5">
+              <h3 className="font-medium text-[14px] mb-3 text-black/70">
+                …or push an existing repository from the command line
+              </h3>
+
+              <div className="relative rounded-md border border-black/15 bg-black/[0.03] p-4 group">
+                <button
+                  onClick={() =>
+                    copy(existingRepoCommands, setExistingRepoCopied)
+                  }
+                  className="absolute top-3 right-3 p-1.5 rounded-md text-black/50 hover:text-black hover:bg-black/10 bg-white border border-black/15 opacity-0 group-hover:opacity-100 transition-all"
+                  aria-label="Copy commands"
+                >
+                  {existingRepoCopied ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </button>
+                <pre className="text-[13px] font-mono text-black leading-relaxed whitespace-pre-wrap break-all">
+                  {existingRepoCommands}
+                </pre>
+              </div>
             </div>
           </div>
 
-          {/* Section 3: Push an existing repository */}
-          <div className="p-5 border-b border-[#30363d]">
-            <h3 className="font-semibold text-[16px] mb-4 text-white">
-              ...or push an existing repository from the command line
-            </h3>
-            
-            <div className="relative rounded-md border border-[#30363d] bg-[#0d1117] p-4 group">
-              <button 
-                onClick={() => copy(existingRepoCommands, setExistingRepoCopied)}
-                className="absolute top-3 right-3 p-1.5 rounded-md text-[#8b949e] hover:text-[#c9d1d9] hover:bg-[#30363d] bg-[#21262d] border border-[#30363d] opacity-0 group-hover:opacity-100 transition-all"
-              >
-                {existingRepoCopied ? <Check className="w-4 h-4 text-[#3fb950]"/> : <Copy className="w-4 h-4"/>}
-              </button>
-              <pre className="text-[13px] font-mono text-[#e6edf3] leading-snug whitespace-pre">
-                {existingRepoCommands}
-              </pre>
-            </div>
-          </div>
-
-          {/* Section 4: Actions (Download & GitHub) */}
-          <div className="px-5 py-4 bg-[#010409] flex flex-wrap justify-end gap-3 rounded-b-lg">
+          {/* Section 4: Actions */}
+          <div className="px-6 py-4 border-t border-black/10 flex flex-wrap justify-end gap-3 shrink-0">
             <button
               onClick={() => onOpenChange(false)}
-              className="px-4 py-2 text-[13px] font-medium rounded-md hover:bg-[#21262d] text-[#c9d1d9] transition-colors"
+              className="px-4 py-2 text-[13px] font-medium rounded-md hover:bg-black/5 text-black transition-colors"
             >
               Close
             </button>
             <button
               onClick={() => window.open(repoUrl, "_blank")}
-              className="px-4 py-2 flex items-center text-[13px] font-medium rounded-md border border-[#30363d] bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] transition-colors"
+              className="px-4 py-2 flex items-center text-[13px] font-medium rounded-md border border-black/15 bg-white hover:bg-black/5 text-black transition-colors"
             >
-              <GitBranch className="mr-2 h-4 w-4" />
+              <ExternalLink className="mr-2 h-4 w-4" />
               View on GitHub
             </button>
             <button
               onClick={onDownload}
               disabled={isDownloading}
-              className="px-4 py-2 flex items-center text-[13px] font-medium rounded-md border border-[rgba(240,246,252,0.1)] bg-[#238636] hover:bg-[#2ea043] text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 flex items-center text-[13px] font-medium rounded-md bg-black hover:bg-black/85 text-white transition-colors disabled:opacity-50"
             >
               {isDownloading ? (
                 <>
@@ -192,7 +243,6 @@ git push -u origin main`;
               )}
             </button>
           </div>
-
         </div>
       </DialogContent>
     </Dialog>
