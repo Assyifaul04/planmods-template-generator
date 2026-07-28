@@ -33,22 +33,10 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Only add role filter if it's provided and not empty
-    if (role && role !== "") {
-      where.role = role;
-    }
-
-    if (plan && plan !== "") {
-      where.plan = plan;
-    }
-
-    if (isBanned !== null && isBanned !== "") {
-      where.isBanned = isBanned === "true";
-    }
-
-    if (isActive !== null && isActive !== "") {
-      where.isActive = isActive === "true";
-    }
+    if (role && role !== "") where.role = role;
+    if (plan && plan !== "") where.plan = plan;
+    if (isBanned !== null && isBanned !== "") where.isBanned = isBanned === "true";
+    if (isActive !== null && isActive !== "") where.isActive = isActive === "true";
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
@@ -95,6 +83,66 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching users:", error);
     return NextResponse.json(
       { error: "Failed to fetch users" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { email, name, username, role, plan } = body;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "User with this email already exists" },
+        { status: 400 }
+      );
+    }
+
+    // Create user with hashed password
+    const hashedPassword = await bcrypt.hash(body.password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        username,
+        role: role || "USER",
+        plan: plan || "FREE",
+        isActive: true,
+        isBanned: false,
+        // You'll need to handle password hashing here
+      },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        userId: session.user.id,
+        action: `CREATED_USER_${user.id}`,
+        metadata: {
+          email: user.email,
+          role: user.role,
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+
+    return NextResponse.json(user);
+  } catch (error) {
+    console.error("Error creating user:", error);
+    return NextResponse.json(
+      { error: "Failed to create user" },
       { status: 500 }
     );
   }

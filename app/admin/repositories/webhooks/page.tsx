@@ -2,37 +2,42 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Search,
-  RefreshCw,
-  ArrowLeft,
   Webhook,
+  RefreshCw,
   Plus,
-  Edit,
   Trash2,
+  AlertCircle,
   CheckCircle,
-  XCircle,
-  Copy,
-  Eye,
-  EyeOff,
-  Save,
+  Loader2,
+  ExternalLink,
+  GitBranch,
 } from "lucide-react";
-import { toast } from "sonner";
 
 interface WebhookRepository {
   id: string;
@@ -40,536 +45,322 @@ interface WebhookRepository {
   repositoryUrl: string;
   webhookId: string | null;
   webhookSecret: string | null;
-  private: boolean;
+  isActive: boolean;
+  lastSyncedAt: string | null;
+  createdAt: string;
   project: {
     id: string;
     name: string;
-  };
+    slug: string;
+    status: string;
+    visibility: string;
+  } | null;
   user: {
+    id: string;
     name: string | null;
     email: string;
+    username: string | null;
   };
 }
 
 export default function WebhookManagementPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const repoId = searchParams.get("repo");
-  
   const [repositories, setRepositories] = useState<WebhookRepository[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedRepo, setSelectedRepo] = useState<WebhookRepository | null>(null);
-  const [webhookSecret, setWebhookSecret] = useState("");
-  const [showSecret, setShowSecret] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [processing, setProcessing] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    fetchRepositories();
-  }, [search]);
-
-  useEffect(() => {
-    if (repoId) {
-      // Focus on the specific repository
-      const repo = repositories.find(r => r.id === repoId);
-      if (repo) {
-        setSelectedRepo(repo);
-        setShowEditDialog(true);
-      }
-    }
-  }, [repoId, repositories]);
-
-  const fetchRepositories = async () => {
+  const fetchWebhooks = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/repositories?limit=100");
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+      });
+      if (filterStatus !== "all") params.append("status", filterStatus);
+
+      const response = await fetch(`/api/admin/repositories/webhooks?${params}`);
       const data = await response.json();
-      setRepositories(data.repositories || []);
+
+      if (!response.ok) throw new Error(data.error || "Failed to fetch webhooks");
+
+      setRepositories(data.webhooks || []);
+      setPagination(data.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      });
     } catch (error) {
-      console.error("Error fetching repositories:", error);
-      toast.error("Failed to fetch repositories");
+      console.error("Error fetching webhooks:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load webhooks",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateWebhook = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRepo) return;
-    setSubmitting(true);
+  useEffect(() => {
+    fetchWebhooks();
+  }, [pagination.page, pagination.limit, filterStatus]);
 
+  const handleWebhookAction = async (id: string, action: "create" | "update" | "delete") => {
     try {
-      // Generate a webhook ID and secret
-      const webhookId = `wh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const secret = `whsec_${Math.random().toString(36).substr(2, 24)}`;
-
-      const response = await fetch(`/api/admin/repositories/${selectedRepo.id}/webhook`, {
+      setProcessing(id);
+      const response = await fetch(`/api/admin/repositories/${id}/webhook`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ webhookId, webhookSecret: secret }),
+        body: JSON.stringify({ action }),
       });
+      const data = await response.json();
 
-      if (!response.ok) throw new Error("Failed to create webhook");
+      if (!response.ok) throw new Error(data.error || `Failed to ${action} webhook`);
 
-      toast.success("Webhook created successfully");
-      setShowCreateDialog(false);
-      setSelectedRepo(null);
-      fetchRepositories();
-    } catch (error) {
-      console.error("Error creating webhook:", error);
-      toast.error("Failed to create webhook");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleUpdateWebhook = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRepo) return;
-    setSubmitting(true);
-
-    try {
-      const response = await fetch(`/api/admin/repositories/${selectedRepo.id}/webhook`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          webhookId: selectedRepo.webhookId,
-          webhookSecret: webhookSecret || selectedRepo.webhookSecret,
-        }),
+      toast({
+        title: "Success",
+        description: `Webhook ${action}ed successfully`,
       });
-
-      if (!response.ok) throw new Error("Failed to update webhook");
-
-      toast.success("Webhook updated successfully");
-      setShowEditDialog(false);
-      setSelectedRepo(null);
-      setWebhookSecret("");
-      fetchRepositories();
+      fetchWebhooks();
     } catch (error) {
-      console.error("Error updating webhook:", error);
-      toast.error("Failed to update webhook");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteWebhook = async () => {
-    if (!selectedRepo) return;
-    setSubmitting(true);
-
-    try {
-      const response = await fetch(`/api/admin/repositories/${selectedRepo.id}/webhook`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ webhookId: null, webhookSecret: null }),
+      console.error(`Error ${action}ing webhook:`, error);
+      toast({
+        title: "Error",
+        description: `Failed to ${action} webhook`,
+        variant: "destructive",
       });
-
-      if (!response.ok) throw new Error("Failed to delete webhook");
-
-      toast.success("Webhook deleted successfully");
-      setShowDeleteDialog(false);
-      setSelectedRepo(null);
-      fetchRepositories();
-    } catch (error) {
-      console.error("Error deleting webhook:", error);
-      toast.error("Failed to delete webhook");
     } finally {
-      setSubmitting(false);
+      setProcessing(null);
     }
-  };
-
-  const handleCopySecret = (secret: string) => {
-    navigator.clipboard.writeText(secret);
-    toast.success("Secret copied to clipboard");
-  };
-
-  const getWebhookStatus = (webhookId: string | null) => {
-    if (webhookId) {
-      return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Configured</Badge>;
-    }
-    return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Not Configured</Badge>;
   };
 
   return (
-    <div className="px-4 lg:px-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/admin/repositories")}
-              className="text-white/60 hover:text-white hover:bg-white/10"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-            <div>
-              <h2 className="text-2xl font-semibold text-white">Webhook Management</h2>
-              <p className="text-sm text-white/60 mt-1">
-                Configure GitHub webhooks for repository synchronization
-              </p>
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold">Webhook Management</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage GitHub webhooks for repository synchronization
+          </p>
         </div>
-        <Button
-          onClick={() => {
-            setSelectedRepo(null);
-            setShowCreateDialog(true);
-          }}
-          className="bg-white/10 hover:bg-white/20 text-white"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Webhook
-        </Button>
-      </div>
-
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-          <Input
-            placeholder="Search repositories..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40"
-          />
-        </div>
-        <Button
-          variant="outline"
-          onClick={fetchRepositories}
-          className="border-white/10 text-white hover:bg-white/10"
-        >
+        <Button onClick={fetchWebhooks} variant="outline">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
 
-      {/* Webhook Configuration Guide */}
-      <Card className="bg-black/40 border-white/10 mb-6">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <Webhook className="h-5 w-5 text-blue-400" />
-            Webhook Configuration Guide
-          </CardTitle>
-          <CardDescription className="text-white/60">
-            Follow these steps to configure GitHub webhooks for your repositories
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Webhooks</CardTitle>
+              <CardDescription>
+                {pagination.total} repositories with webhook configuration
+              </CardDescription>
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
-          <ol className="space-y-2 text-white/60 list-decimal pl-5">
-            <li>Go to your GitHub repository settings</li>
-            <li>Navigate to "Webhooks" section</li>
-            <li>Click "Add webhook"</li>
-            <li>Set Payload URL to: <code className="bg-white/10 px-2 py-1 rounded text-white">https://your-domain.com/api/webhooks/github</code></li>
-            <li>Set Content type to: <code className="bg-white/10 px-2 py-1 rounded text-white">application/json</code></li>
-            <li>Set Secret to the generated webhook secret</li>
-            <li>Select events: "Just the push event" or "Let me select individual events"</li>
-            <li>Click "Add webhook"</li>
-          </ol>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : repositories.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-8">
+              <Webhook className="h-12 w-12 text-muted-foreground" />
+              <p className="text-muted-foreground">No webhook configurations found</p>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Repository</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Webhook ID</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {repositories.map((repo) => (
+                      <TableRow key={repo.id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium flex items-center gap-2">
+                              <GitBranch className="h-4 w-4 text-muted-foreground" />
+                              {repo.repositoryName}
+                            </span>
+                            <a
+                              href={repo.repositoryUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+                            >
+                              {repo.repositoryUrl}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {repo.project ? (
+                            <div>
+                              <span className="text-sm">{repo.project.name}</span>
+                              <Badge variant="outline" className="ml-2">
+                                {repo.project.status}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              No project
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-sm">
+                              {repo.user?.name || repo.user?.username || repo.user?.email || "Unknown"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {repo.user?.email}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {repo.isActive ? (
+                            <Badge variant="default" className="bg-green-100 text-green-800">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Inactive
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {repo.webhookId ? (
+                            <code className="text-xs bg-muted px-2 py-1 rounded">
+                              {repo.webhookId}
+                            </code>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              Not configured
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {!repo.isActive ? (
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  handleWebhookAction(repo.id, "create")
+                                }
+                                disabled={processing === repo.id}
+                              >
+                                {processing === repo.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Create
+                                  </>
+                                )}
+                              </Button>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleWebhookAction(repo.id, "update")
+                                  }
+                                  disabled={processing === repo.id}
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() =>
+                                    handleWebhookAction(repo.id, "delete")
+                                  }
+                                  disabled={processing === repo.id}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {repositories.length} of {pagination.total} repositories
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPagination((prev) => ({
+                        ...prev,
+                        page: Math.max(prev.page - 1, 1),
+                      }))
+                    }
+                    disabled={pagination.page <= 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm">
+                    Page {pagination.page} of {pagination.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPagination((prev) => ({
+                        ...prev,
+                        page: Math.min(prev.page + 1, prev.totalPages),
+                      }))
+                    }
+                    disabled={pagination.page >= pagination.totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
-
-      {/* Repositories Table */}
-      <div className="rounded-lg border border-white/10 bg-black/40 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-white/5">
-            <TableRow className="border-white/10">
-              <TableHead className="text-white/60 font-medium">Repository</TableHead>
-              <TableHead className="text-white/60 font-medium">Project</TableHead>
-              <TableHead className="text-white/60 font-medium">Owner</TableHead>
-              <TableHead className="text-white/60 font-medium">Status</TableHead>
-              <TableHead className="text-white/60 font-medium">Webhook ID</TableHead>
-              <TableHead className="text-white/60 font-medium text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-white/40">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-                    Loading...
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : repositories.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-white/40">
-                  No repositories found
-                </TableCell>
-              </TableRow>
-            ) : (
-              repositories.map((repo) => (
-                <TableRow key={repo.id} className="border-white/10 hover:bg-white/5">
-                  <TableCell>
-                    <div>
-                      <div className="text-white font-medium">{repo.repositoryName}</div>
-                      <div className="text-xs text-white/40 truncate max-w-[200px]">
-                        {repo.repositoryUrl}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-white/60">{repo.project.name}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="text-white/60">{repo.user.name || "Unknown"}</div>
-                      <div className="text-xs text-white/40">{repo.user.email}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{getWebhookStatus(repo.webhookId)}</TableCell>
-                  <TableCell>
-                    {repo.webhookId ? (
-                      <code className="text-xs text-white/40 bg-white/5 px-2 py-1 rounded">
-                        {repo.webhookId}
-                      </code>
-                    ) : (
-                      <span className="text-white/30">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {repo.webhookId ? (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedRepo(repo);
-                              setWebhookSecret(repo.webhookSecret || "");
-                              setShowEditDialog(true);
-                            }}
-                            className="text-white/60 hover:text-white hover:bg-white/10"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedRepo(repo);
-                              setShowDeleteDialog(true);
-                            }}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedRepo(repo);
-                            setShowCreateDialog(true);
-                          }}
-                          className="text-green-400 hover:text-green-300 hover:bg-green-500/10"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Configure
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Create Webhook Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="bg-black border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle>Configure Webhook</DialogTitle>
-            <DialogDescription className="text-white/60">
-              Select a repository to configure webhook
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateWebhook}>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label className="text-white">Select Repository *</Label>
-                <div className="mt-1.5 max-h-[200px] overflow-y-auto space-y-2">
-                  {repositories
-                    .filter(r => !r.webhookId)
-                    .map((repo) => (
-                      <div
-                        key={repo.id}
-                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                          selectedRepo?.id === repo.id
-                            ? "border-blue-500 bg-blue-500/10"
-                            : "border-white/10 hover:bg-white/5"
-                        }`}
-                        onClick={() => setSelectedRepo(repo)}
-                      >
-                        <div className="text-white font-medium">{repo.repositoryName}</div>
-                        <div className="text-xs text-white/40">{repo.project.name}</div>
-                      </div>
-                    ))}
-                </div>
-                {repositories.filter(r => !r.webhookId).length === 0 && (
-                  <p className="text-yellow-400 text-sm mt-2">All repositories already have webhooks configured</p>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowCreateDialog(false);
-                  setSelectedRepo(null);
-                }}
-                className="border-white/10 text-white hover:bg-white/10"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={!selectedRepo || submitting}
-                className="bg-blue-500 hover:bg-blue-600"
-              >
-                {submitting ? (
-                  <>
-                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Webhook className="h-4 w-4 mr-2" />
-                    Create Webhook
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Webhook Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="bg-black border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle>Edit Webhook</DialogTitle>
-            <DialogDescription className="text-white/60">
-              Update webhook configuration for {selectedRepo?.repositoryName}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleUpdateWebhook}>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label className="text-white">Webhook ID</Label>
-                <div className="mt-1.5 p-2 bg-white/5 rounded border border-white/10 text-white/60 font-mono text-sm">
-                  {selectedRepo?.webhookId}
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="secret" className="text-white">Webhook Secret</Label>
-                <div className="flex gap-2 mt-1.5">
-                  <Input
-                    id="secret"
-                    type={showSecret ? "text" : "password"}
-                    value={webhookSecret || selectedRepo?.webhookSecret || ""}
-                    onChange={(e) => setWebhookSecret(e.target.value)}
-                    placeholder="Webhook secret"
-                    className="bg-white/5 border-white/10 text-white flex-1 font-mono"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowSecret(!showSecret)}
-                    className="border-white/10 text-white hover:bg-white/10"
-                  >
-                    {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleCopySecret(webhookSecret || selectedRepo?.webhookSecret || "")}
-                    className="border-white/10 text-white hover:bg-white/10"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowEditDialog(false);
-                  setSelectedRepo(null);
-                  setWebhookSecret("");
-                }}
-                className="border-white/10 text-white hover:bg-white/10"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="bg-blue-500 hover:bg-blue-600"
-              >
-                {submitting ? (
-                  <>
-                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Update Webhook
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Webhook Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="bg-black border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle>Delete Webhook</DialogTitle>
-            <DialogDescription className="text-white/60">
-              Are you sure you want to delete the webhook for "{selectedRepo?.repositoryName}"?
-              This will stop all GitHub synchronization events.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              className="border-white/10 text-white hover:bg-white/10"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDeleteWebhook}
-              disabled={submitting}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              {submitting ? (
-                <>
-                  <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Webhook
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

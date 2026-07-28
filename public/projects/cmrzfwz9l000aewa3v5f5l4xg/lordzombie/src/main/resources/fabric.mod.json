@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "lordzombie",
+  "version": "${version}",
+  "name": "Lordzombie Mod",
+  "description": "An example mod built with Fabric",
+  "authors": ["Your Name"],
+  "contact": {
+    "homepage": "https://example.com/",
+    "sources": "https://github.com/yourusername/lordzombie"
+  },
+  "license": "MIT",
+  "icon": "assets/lordzombie/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.lordzombie.mod.LordzombieMod"
+    ],
+    "client": [
+      "com.lordzombie.mod.LordzombieModClient"
+    ]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.16.9",
+    "minecraft": "~1.21.11",
+    "fabric-api": "*"
+  }
+}

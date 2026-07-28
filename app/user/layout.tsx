@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { UserSidebar } from "@/components/user/user-sidebar";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { RefreshCw } from "lucide-react";
 
 export default function UserLayout({
   children,
@@ -35,9 +36,8 @@ export default function UserLayout({
   if (status === "loading") {
     return (
       <div className="flex h-screen items-center justify-center bg-black">
-        <div className="flex items-center gap-2 text-white/40">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-          Loading...
+        <div className="flex items-center justify-center min-h-screen">
+          <RefreshCw className="h-8 w-8 animate-spin" />
         </div>
       </div>
     );

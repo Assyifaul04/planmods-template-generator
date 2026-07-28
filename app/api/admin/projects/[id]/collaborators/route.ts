@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,8 +15,24 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // ✅ PERBAIKAN: Await params
+    const { id } = await params;
+
+    // Cek apakah project ada
+    const project = await prisma.project.findUnique({
+      where: { id },
+      select: { id: true, name: true },
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
     const collaborators = await prisma.projectCollaborator.findMany({
-      where: { projectId: params.id },
+      where: { projectId: id },
       include: {
         user: {
           select: {
@@ -31,7 +47,11 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(collaborators);
+    return NextResponse.json({
+      collaborators,
+      projectName: project.name,
+      total: collaborators.length,
+    });
   } catch (error) {
     console.error("Error fetching collaborators:", error);
     return NextResponse.json(

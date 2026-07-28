@@ -1,7 +1,7 @@
 // app/admin/projects/collaborators/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Table,
@@ -32,6 +32,7 @@ import {
   Users,
   UserPlus,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,29 +52,46 @@ interface Collaborator {
   };
 }
 
-export default function CollaboratorsPage() {
+// ✅ Component dengan useSearchParams dibungkus Suspense
+function CollaboratorsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId");
+  
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [projectName, setProjectName] = useState("");
 
   useEffect(() => {
     if (projectId) {
       fetchCollaborators();
+    } else {
+      setLoading(false);
+      setError("No project ID provided");
     }
   }, [projectId]);
 
   const fetchCollaborators = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`/api/admin/projects/${projectId}/collaborators`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("Project not found");
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
-      setCollaborators(data);
+      setCollaborators(data.collaborators || []);
+      setProjectName(data.projectName || "");
     } catch (error) {
       console.error("Error fetching collaborators:", error);
+      setError(error instanceof Error ? error.message : "Failed to fetch collaborators");
       toast.error("Failed to fetch collaborators");
     } finally {
       setLoading(false);
@@ -99,6 +117,29 @@ export default function CollaboratorsPage() {
       .slice(0, 2);
   };
 
+  const filteredCollaborators = collaborators.filter((c) =>
+    c.user.name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.user.email.toLowerCase().includes(search.toLowerCase()) ||
+    c.user.username?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (!projectId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <Users className="h-12 w-12 text-white/20" />
+        <p className="text-white/40">No project selected</p>
+        <Button
+          variant="outline"
+          onClick={() => router.push("/admin/projects")}
+          className="border-white/10 text-white hover:bg-white/10"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Projects
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 lg:px-6">
       <div className="flex items-center gap-3 mb-6">
@@ -112,9 +153,16 @@ export default function CollaboratorsPage() {
           Back
         </Button>
         <div>
-          <h2 className="text-2xl font-semibold text-white">Project Collaborators</h2>
+          <h2 className="text-2xl font-semibold text-white">
+            Project Collaborators
+            {projectName && (
+              <span className="text-sm font-normal text-white/40 ml-2">
+                {projectName}
+              </span>
+            )}
+          </h2>
           <p className="text-sm text-white/60 mt-1">
-            Manage collaborators for project {projectId?.slice(0, 8) || ""}
+            Manage collaborators for project ID: {projectId.slice(0, 8)}
           </p>
         </div>
       </div>
@@ -141,7 +189,7 @@ export default function CollaboratorsPage() {
       <div className="rounded-lg border border-white/10 bg-black/40 overflow-hidden">
         <Table>
           <TableHeader className="bg-white/5">
-            <TableRow className="border-white/10">
+            <TableRow className="border-white/10 hover:bg-transparent">
               <TableHead className="text-white/60">User</TableHead>
               <TableHead className="text-white/60">Email</TableHead>
               <TableHead className="text-white/60">Role</TableHead>
@@ -154,23 +202,47 @@ export default function CollaboratorsPage() {
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-white/40">
                   <div className="flex items-center justify-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
+                    <Loader2 className="h-4 w-4 animate-spin text-white/40" />
                     Loading collaborators...
                   </div>
                 </TableCell>
               </TableRow>
-            ) : collaborators.length === 0 ? (
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-white/40">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="text-red-400">⚠️ {error}</div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={fetchCollaborators}
+                      className="border-white/10 text-white hover:bg-white/10"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredCollaborators.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-white/40">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="h-12 w-12 text-white/20" />
-                    <p>No collaborators found</p>
+                    <p>
+                      {search ? "No collaborators match your search" : "No collaborators found"}
+                    </p>
+                    {!search && (
+                      <p className="text-xs text-white/20">
+                        Add collaborators to this project
+                      </p>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              collaborators.map((collaborator) => (
-                <TableRow key={collaborator.id} className="border-white/10 hover:bg-white/5">
+              filteredCollaborators.map((collaborator) => (
+                <TableRow key={collaborator.id} className="border-white/10 hover:bg-white/5 transition-colors">
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
@@ -198,7 +270,7 @@ export default function CollaboratorsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      className="text-red-400/60 hover:text-red-400 hover:bg-red-500/10"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -209,6 +281,27 @@ export default function CollaboratorsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {collaborators.length > 0 && (
+        <div className="mt-4 text-xs text-white/20">
+          Total: {collaborators.length} collaborator{collaborators.length > 1 ? "s" : ""}
+          {search && filteredCollaborators.length !== collaborators.length && (
+            <span> · Showing {filteredCollaborators.length}</span>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function CollaboratorsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-white/40" />
+      </div>
+    }>
+      <CollaboratorsContent />
+    </Suspense>
   );
 }

@@ -54,7 +54,7 @@ const FABRIC_LOOM_VERSIONS: Record<string, string> = {
 
 // ✅ FABRIC API VERSIONS - LENGKAP & SINKRON
 const FABRIC_API_VERSIONS: Record<string, string> = {
-  '1.21.11': '0.135.2+1.21.11', // Diperbarui
+  '1.21.11': '0.135.2+1.21.11',
   '1.21.10': '0.106.1+1.21.10',
   '1.21.9': '0.106.1+1.21.9',
   '1.21.8': '0.106.1+1.21.8',
@@ -148,16 +148,15 @@ function getMappingsVersion(mcVersion: string): string {
   return MAPPINGS_VERSIONS['default'];
 }
 
-// ✅ JAVA & GRADLE VERSION - DIPERBAIKI
+// ✅ JAVA & GRADLE VERSION
 function getJavaAndGradleVersion(mcVersion: string): { java: string, gradle: string } {
   const parts = mcVersion.split('.');
   const major = parseInt(parts[0] || '1');
   const minor = parseInt(parts[1] || '0');
   const patch = parseInt(parts[2] || '0');
 
-  // 🔧 FIX: Ubah ke Gradle 8.14 agar Fabric Loom 1.11.7+ tidak error
   if ((major === 1 && minor >= 21) || (major === 1 && minor === 20 && patch >= 5)) {
-    return { java: '21', gradle: '8.14' }; 
+    return { java: '21', gradle: '8.14' };
   }
   if (major === 1 && minor >= 18) {
     return { java: '17', gradle: '8.5' };
@@ -248,7 +247,7 @@ export async function generateProject(options: GenerateOptions): Promise<{
     });
   }
 
-  // ✅ PRIORITAS: Custom > Database > Auto-detect berdasarkan Minecraft Version
+  // ✅ PRIORITAS: Custom > Database > Auto-detect
   const versionInfo = getJavaAndGradleVersion(minecraftVersion);
   
   const finalLoaderVersion = customLoaderVersion || loaderVersionData?.loaderVersion || "0.16.9";
@@ -412,7 +411,7 @@ export async function generateProject(options: GenerateOptions): Promise<{
     send({ type: "error", message: "Project directory does not exist after copy!" });
   }
 
-  // Save to database
+  // ✅ Save to database - PROJECT + CONFIG
   send({ type: "log", message: `Saving project to database...` });
   
   let project;
@@ -435,6 +434,23 @@ export async function generateProject(options: GenerateOptions): Promise<{
         templateId: template.id,
       },
     });
+
+    // ✅ TAMBAHKAN: Buat ProjectConfig
+    await prisma.projectConfig.create({
+      data: {
+        projectId: project.id,
+        loaderVersion: data.loaderVersion,
+        fabricApiVersion: data.fabricApiVersion,
+        loomVersion: data.loomVersion,
+        javaVersion: data.javaVersion,
+        gradleVersion: data.gradleVersion,
+        mappingVersion: data.mappingsVersion,
+        // yarnVersion: null, // Tidak digunakan untuk Fabric
+      },
+    });
+
+    send({ type: "log", message: `✅ Project config created for ${project.name}` });
+    
   } catch (dbError: any) {
     if (dbError.code === 'P2002') {
       const timestamp = Date.now().toString().slice(-6);
@@ -472,6 +488,21 @@ export async function generateProject(options: GenerateOptions): Promise<{
           templateId: template.id,
         },
       });
+
+      // ✅ Buat config untuk project baru
+      await prisma.projectConfig.create({
+        data: {
+          projectId: project.id,
+          loaderVersion: data.loaderVersion,
+          fabricApiVersion: data.fabricApiVersion,
+          loomVersion: data.loomVersion,
+          javaVersion: data.javaVersion,
+          gradleVersion: data.gradleVersion,
+          mappingVersion: data.mappingsVersion,
+        },
+      });
+      
+      send({ type: "log", message: `✅ Project config created for ${project.name}` });
     } else {
       throw dbError;
     }

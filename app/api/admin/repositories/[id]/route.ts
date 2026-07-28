@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,8 +15,10 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const repository = await prisma.githubRepository.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         user: {
           select: {
@@ -62,10 +64,9 @@ export async function GET(
   }
 }
 
-// app/api/admin/repositories/[id]/route.ts (add DELETE)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -74,8 +75,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const repository = await prisma.githubRepository.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!repository) {
@@ -83,13 +86,13 @@ export async function DELETE(
     }
 
     await prisma.githubRepository.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
-        action: `DELETED_REPOSITORY_${params.id}`,
+        action: `DELETED_REPOSITORY_${id}`,
         metadata: {
           repositoryName: repository.repositoryName,
           projectId: repository.projectId,

@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { Octokit } from "@octokit/rest";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,18 +16,61 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const repository = await prisma.githubRepository.findUnique({
-      where: { id: params.id },
+      where: { id },
+      include: {
+        user: true,
+      },
     });
 
     if (!repository) {
       return NextResponse.json({ error: "Repository not found" }, { status: 404 });
     }
 
-    // Simulate sync process - in production, this would call GitHub API
-    // and update the repository data
+    // Sync dengan GitHub API
+    try {
+      const githubToken = session.githubAccessToken as string;
+      if (githubToken) {
+        const octokit = new Octokit({ auth: githubToken });
+        const [owner, repo] = repository.repositoryUrl
+          .replace("https://github.com/", "")
+          .split("/");
+
+        // Fetch repository info dari GitHub
+        const { data: repoData } = await octokit.repos.get({
+          owner,
+          repo,
+        });
+
+        // Update repository info
+        await prisma.githubRepository.update({
+          where: { id },
+          data: {
+            repositoryName: repoData.name,
+            repositoryUrl: repoData.html_url,
+            cloneUrl: repoData.clone_url,
+            defaultBranch: repoData.default_branch,
+            private: repoData.private,
+            lastSyncedAt: new Date(),
+          },
+        });
+      }
+    } catch (githubError) {
+      console.error("GitHub API error:", githubError);
+      // Jika gagal sync dengan GitHub, tetap update lastSyncedAt
+      await prisma.githubRepository.update({
+        where: { id },
+        data: {
+          lastSyncedAt: new Date(),
+        },
+      });
+    }
+
+    // Update lastSyncedAt
     const updatedRepository = await prisma.githubRepository.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         lastSyncedAt: new Date(),
         updatedAt: new Date(),
@@ -52,7 +96,7 @@ export async function POST(
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
-        action: `SYNCED_REPOSITORY_${params.id}`,
+        action: `SYNCED_REPOSITORY_${id}`,
         metadata: {
           repositoryName: repository.repositoryName,
           timestamp: new Date().toISOString(),
@@ -61,6 +105,7 @@ export async function POST(
     });
 
     return NextResponse.json({
+      success: true,
       message: "Repository synced successfully",
       repository: updatedRepository,
     });

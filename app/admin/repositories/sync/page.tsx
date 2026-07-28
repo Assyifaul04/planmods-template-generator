@@ -3,140 +3,267 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, CheckCircle, XCircle, Clock, ArrowLeft, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Search,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Clock,
+  ArrowLeft,
+  AlertCircle,
+  Loader2,
+  GitBranch,
+  Globe,
+  Lock,
+  ExternalLink,
+} from "lucide-react";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 interface SyncStats {
-  totalRepos: number;
-  privateRepos: number;
-  publicRepos: number;
-  withWebhooks: number;
-  withoutWebhooks: number;
-  recentlySynced: number;
-  needsSync: number;
+  total: {
+    repositories: number;
+    private: number;
+    public: number;
+    withWebhooks: number;
+    withoutWebhooks: number;
+    recentlySynced: number;
+    needsSync: number;
+  };
 }
 
 interface Repository {
   id: string;
   repositoryName: string;
   repositoryUrl: string;
+  cloneUrl: string;
+  defaultBranch: string;
+  private: boolean;
   lastSyncedAt: string | null;
   webhookId: string | null;
-  project: {
-    name: string;
-  };
+  createdAt: string;
+  updatedAt: string;
   user: {
+    id: string;
     name: string | null;
     email: string;
+    image: string | null;
+    username: string;
   };
+  project: {
+    id: string;
+    name: string;
+    slug: string;
+    status: string;
+    visibility: string;
+  } | null;
 }
 
 export default function SyncStatusPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [stats, setStats] = useState<SyncStats | null>(null);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "synced" | "needs-sync" | "never">("all");
-
-  useEffect(() => {
-    fetchData();
-  }, [search, filter]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statsRes, reposRes] = await Promise.all([
-        fetch("/api/admin/repositories/stats"),
-        fetch("/api/admin/repositories?limit=100"),
-      ]);
-
+      
+      // Fetch stats
+      const statsRes = await fetch("/api/admin/repositories/stats?days=7");
       const statsData = await statsRes.json();
+      
+      if (!statsRes.ok) throw new Error(statsData.error || "Failed to fetch stats");
+      
+      // Fetch repositories
+      const reposRes = await fetch("/api/admin/repositories?limit=100");
       const reposData = await reposRes.json();
+      
+      if (!reposRes.ok) throw new Error(reposData.error || "Failed to fetch repositories");
 
       setStats(statsData);
-      
+
       // Filter repositories based on filter
       let filteredRepos = reposData.repositories || [];
+      
       if (filter === "synced") {
-        filteredRepos = filteredRepos.filter((r: any) => r.lastSyncedAt && new Date(r.lastSyncedAt) > new Date(Date.now() - 24 * 60 * 60 * 1000));
+        filteredRepos = filteredRepos.filter(
+          (r: Repository) =>
+            r.lastSyncedAt &&
+            new Date(r.lastSyncedAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+        );
       } else if (filter === "needs-sync") {
-        filteredRepos = filteredRepos.filter((r: any) => 
-          r.lastSyncedAt && new Date(r.lastSyncedAt) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        filteredRepos = filteredRepos.filter(
+          (r: Repository) =>
+            r.lastSyncedAt &&
+            new Date(r.lastSyncedAt) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
         );
       } else if (filter === "never") {
-        filteredRepos = filteredRepos.filter((r: any) => !r.lastSyncedAt);
+        filteredRepos = filteredRepos.filter((r: Repository) => !r.lastSyncedAt);
       }
 
       if (search) {
-        filteredRepos = filteredRepos.filter((r: any) =>
-          r.repositoryName.toLowerCase().includes(search.toLowerCase()) ||
-          r.repositoryUrl.toLowerCase().includes(search.toLowerCase())
+        filteredRepos = filteredRepos.filter(
+          (r: Repository) =>
+            r.repositoryName.toLowerCase().includes(search.toLowerCase()) ||
+            r.repositoryUrl.toLowerCase().includes(search.toLowerCase()) ||
+            r.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
+            r.user?.email?.toLowerCase().includes(search.toLowerCase())
         );
       }
 
       setRepositories(filteredRepos);
     } catch (error) {
       console.error("Error fetching data:", error);
-      toast.error("Failed to fetch sync status");
+      toast({
+        title: "Error",
+        description: "Failed to fetch sync status",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, [search, filter]);
+
   const getSyncStatus = (lastSyncedAt: string | null) => {
     if (!lastSyncedAt) {
-      return { label: "Never Synced", color: "bg-red-500/20 text-red-400 border-red-500/30" };
+      return {
+        label: "Never Synced",
+        variant: "destructive" as const,
+        icon: <XCircle className="h-3 w-3 mr-1" />,
+      };
     }
     const lastSync = new Date(lastSyncedAt);
     const now = new Date();
     const diffHours = (now.getTime() - lastSync.getTime()) / (1000 * 60 * 60);
-    
+
     if (diffHours < 24) {
-      return { label: "Synced", color: "bg-green-500/20 text-green-400 border-green-500/30" };
+      return {
+        label: "Synced",
+        variant: "default" as const,
+        className: "bg-green-100 text-green-800",
+        icon: <CheckCircle className="h-3 w-3 mr-1" />,
+      };
     } else if (diffHours < 168) {
-      return { label: "Needs Sync", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" };
+      return {
+        label: "Needs Sync",
+        variant: "outline" as const,
+        className: "bg-yellow-100 text-yellow-800",
+        icon: <Clock className="h-3 w-3 mr-1" />,
+      };
     } else {
-      return { label: "Outdated", color: "bg-red-500/20 text-red-400 border-red-500/30" };
+      return {
+        label: "Outdated",
+        variant: "destructive" as const,
+        icon: <AlertCircle className="h-3 w-3 mr-1" />,
+      };
+    }
+  };
+
+  const handleSync = async (id: string) => {
+    try {
+      setSyncing(id);
+      const response = await fetch(`/api/admin/repositories/${id}/sync`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || "Failed to sync repository");
+
+      toast({
+        title: "Success",
+        description: "Repository synced successfully",
+      });
+      await fetchData();
+    } catch (error) {
+      console.error("Error syncing repository:", error);
+      toast({
+        title: "Error",
+        description: "Failed to sync repository",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(null);
     }
   };
 
   const handleSyncAll = async () => {
     try {
-      // In production, this would trigger a background job
-      // For now, we'll just refresh the data
-      toast.success("Sync process started for all repositories");
-      setTimeout(() => {
-        fetchData();
-      }, 2000);
+      toast({
+        title: "Info",
+        description: "Sync process started for all repositories",
+      });
+      
+      // Sync repositories that need it
+      const reposToSync = repositories.filter(
+        (r) => !r.lastSyncedAt || 
+        new Date(r.lastSyncedAt) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      );
+
+      for (const repo of reposToSync) {
+        await handleSync(repo.id);
+        // Small delay between requests to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+      toast({
+        title: "Success",
+        description: "All repositories synced successfully",
+      });
     } catch (error) {
-      console.error("Error syncing all:", error);
-      toast.error("Failed to start sync process");
+      console.error("Error syncing all repositories:", error);
+      toast({
+        title: "Error",
+        description: "Failed to sync all repositories",
+        variant: "destructive",
+      });
     }
   };
 
   return (
-    <div className="px-4 lg:px-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => router.push("/admin/repositories")}
-              className="text-white/60 hover:text-white hover:bg-white/10"
+              className="hover:bg-accent"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
             <div>
-              <h2 className="text-2xl font-semibold text-white">Repository Sync Status</h2>
-              <p className="text-sm text-white/60 mt-1">
+              <h1 className="text-3xl font-bold">Repository Sync Status</h1>
+              <p className="text-muted-foreground mt-1">
                 Monitor GitHub repository synchronization status
               </p>
             </div>
@@ -153,184 +280,277 @@ export default function SyncStatusPage() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <Card className="bg-black/40 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white text-sm font-medium">Total Repositories</CardTitle>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Total Repositories</CardTitle>
+              <GitBranch className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{stats.totalRepos}</div>
+              <div className="text-2xl font-bold">{stats.total.repositories}</div>
             </CardContent>
           </Card>
-          <Card className="bg-black/40 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white text-sm font-medium">Private</CardTitle>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Private</CardTitle>
+              <Lock className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-400">{stats.privateRepos}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-black/40 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white text-sm font-medium">Public</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-400">{stats.publicRepos}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-black/40 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white text-sm font-medium">Webhooks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-400">
-                {stats.withWebhooks}
-                <span className="text-sm text-white/40 ml-2">/ {stats.totalRepos}</span>
+              <div className="text-2xl font-bold text-red-500">
+                {stats.total.private}
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-black/40 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white text-sm font-medium">Needs Sync</CardTitle>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Public</CardTitle>
+              <Globe className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-400">{stats.needsSync}</div>
+              <div className="text-2xl font-bold text-green-500">
+                {stats.total.public}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Webhooks</CardTitle>
+              <RefreshCw className="h-4 w-4 text-purple-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-500">
+                {stats.total.withWebhooks}
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  / {stats.total.repositories}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Needs Sync</CardTitle>
+              <AlertCircle className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-500">
+                {stats.total.needsSync}
+              </div>
             </CardContent>
           </Card>
         </div>
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="flex-1 min-w-[200px] relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-          <Input
-            placeholder="Search repositories..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant={filter === "all" ? "default" : "outline"}
-            onClick={() => setFilter("all")}
-            className={filter === "all" ? "bg-white text-black hover:bg-white/90" : "border-white/10 text-white hover:bg-white/10"}
-          >
-            All
-          </Button>
-          <Button
-            variant={filter === "synced" ? "default" : "outline"}
-            onClick={() => setFilter("synced")}
-            className={filter === "synced" ? "bg-green-500 hover:bg-green-600" : "border-white/10 text-white hover:bg-white/10"}
-          >
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Synced
-          </Button>
-          <Button
-            variant={filter === "needs-sync" ? "default" : "outline"}
-            onClick={() => setFilter("needs-sync")}
-            className={filter === "needs-sync" ? "bg-yellow-500 hover:bg-yellow-600" : "border-white/10 text-white hover:bg-white/10"}
-          >
-            <AlertCircle className="h-4 w-4 mr-2" />
-            Needs Sync
-          </Button>
-          <Button
-            variant={filter === "never" ? "default" : "outline"}
-            onClick={() => setFilter("never")}
-            className={filter === "never" ? "bg-red-500 hover:bg-red-600" : "border-white/10 text-white hover:bg-white/10"}
-          >
-            <XCircle className="h-4 w-4 mr-2" />
-            Never Synced
-          </Button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Repositories</CardTitle>
+          <CardDescription>
+            {repositories.length} repositories found
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[200px] relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search repositories..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={filter === "all" ? "default" : "outline"}
+                  onClick={() => setFilter("all")}
+                  size="sm"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={filter === "synced" ? "default" : "outline"}
+                  onClick={() => setFilter("synced")}
+                  size="sm"
+                  className={filter === "synced" ? "bg-green-500 hover:bg-green-600" : ""}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Synced
+                </Button>
+                <Button
+                  variant={filter === "needs-sync" ? "default" : "outline"}
+                  onClick={() => setFilter("needs-sync")}
+                  size="sm"
+                  className={filter === "needs-sync" ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+                >
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Needs Sync
+                </Button>
+                <Button
+                  variant={filter === "never" ? "default" : "outline"}
+                  onClick={() => setFilter("never")}
+                  size="sm"
+                  className={filter === "never" ? "bg-red-500 hover:bg-red-600" : ""}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Never Synced
+                </Button>
+              </div>
+            </div>
 
-      {/* Repositories Table */}
-      <div className="rounded-lg border border-white/10 bg-black/40 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-white/5">
-            <TableRow className="border-white/10">
-              <TableHead className="text-white/60 font-medium">Repository</TableHead>
-              <TableHead className="text-white/60 font-medium">Project</TableHead>
-              <TableHead className="text-white/60 font-medium">Owner</TableHead>
-              <TableHead className="text-white/60 font-medium">Status</TableHead>
-              <TableHead className="text-white/60 font-medium">Last Synced</TableHead>
-              <TableHead className="text-white/60 font-medium">Webhook</TableHead>
-              <TableHead className="text-white/60 font-medium text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-white/40">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-                    Loading...
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : repositories.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-white/40">
-                  No repositories found
-                </TableCell>
-              </TableRow>
-            ) : (
-              repositories.map((repo) => {
-                const status = getSyncStatus(repo.lastSyncedAt);
-                return (
-                  <TableRow key={repo.id} className="border-white/10 hover:bg-white/5">
-                    <TableCell>
-                      <div>
-                        <div className="text-white font-medium">{repo.repositoryName}</div>
-                        <div className="text-xs text-white/40 truncate max-w-[200px]">
-                          {repo.repositoryUrl}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-white/60">{repo.project.name}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="text-white/60">{repo.user.name || "Unknown"}</div>
-                        <div className="text-xs text-white/40">{repo.user.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={status.color}>{status.label}</Badge>
-                    </TableCell>
-                    <TableCell className="text-white/40 text-sm">
-                      {repo.lastSyncedAt ? new Date(repo.lastSyncedAt).toLocaleString() : "Never"}
-                    </TableCell>
-                    <TableCell>
-                      {repo.webhookId ? (
-                        <CheckCircle className="h-4 w-4 text-green-400" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-400" />
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {status.label !== "Synced" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            // Trigger sync for this repository
-                            toast.success(`Syncing ${repo.repositoryName}...`);
-                          }}
-                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </TableCell>
+            {/* Repositories Table */}
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Repository</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Owner</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Last Synced</TableHead>
+                    <TableHead>Webhook</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                        <p className="mt-2 text-muted-foreground">
+                          Loading repositories...
+                        </p>
+                      </TableCell>
+                    </TableRow>
+                  ) : repositories.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-2">
+                          <GitBranch className="h-8 w-8 text-muted-foreground" />
+                          <p className="text-muted-foreground">
+                            No repositories found
+                          </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    repositories.map((repo) => {
+                      const status = getSyncStatus(repo.lastSyncedAt);
+                      const isSyncing = syncing === repo.id;
+                      
+                      return (
+                        <TableRow key={repo.id}>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium flex items-center gap-2">
+                                <GitBranch className="h-4 w-4 text-muted-foreground" />
+                                {repo.repositoryName}
+                              </span>
+                              <a
+                                href={repo.repositoryUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+                              >
+                                {repo.repositoryUrl}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {repo.project ? (
+                              <div>
+                                <span className="text-sm font-medium">
+                                  {repo.project.name}
+                                </span>
+                                <Badge variant="outline" className="ml-2">
+                                  {repo.project.status}
+                                </Badge>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                No project
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-sm">
+                                {repo.user?.name || repo.user?.username || "Unknown"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {repo.user?.email}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={status.variant}
+                              className={status.className}
+                            >
+                              {status.icon}
+                              {status.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {repo.lastSyncedAt ? (
+                              <span className="text-sm">
+                                {format(new Date(repo.lastSyncedAt), "PPp", {
+                                  locale: id,
+                                })}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                Never
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {repo.webhookId ? (
+                              <Badge variant="default" className="bg-green-100 text-green-800">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Active
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Inactive
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {status.label !== "Synced" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSync(repo.id)}
+                                disabled={isSyncing}
+                              >
+                                {isSyncing ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                    Sync Now
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

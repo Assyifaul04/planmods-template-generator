@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "com.lordzombie.mod.client.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"LordzombieClientMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

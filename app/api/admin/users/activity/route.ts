@@ -14,30 +14,15 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = parseInt(searchParams.get("limit") || "20");
     const userId = searchParams.get("userId");
     const action = searchParams.get("action");
-    const search = searchParams.get("search") || "";
 
     const skip = (page - 1) * limit;
 
     const where: any = {};
-
-    if (userId) {
-      where.userId = userId;
-    }
-
-    if (action) {
-      where.action = { contains: action, mode: "insensitive" };
-    }
-
-    if (search) {
-      where.OR = [
-        { action: { contains: search, mode: "insensitive" } },
-        { user: { name: { contains: search, mode: "insensitive" } } },
-        { user: { email: { contains: search, mode: "insensitive" } } },
-      ];
-    }
+    if (userId) where.userId = userId;
+    if (action) where.action = { contains: action, mode: "insensitive" };
 
     const [activities, total] = await Promise.all([
       prisma.activityLog.findMany({
@@ -49,13 +34,12 @@ export async function GET(request: NextRequest) {
               name: true,
               email: true,
               image: true,
-              username: true,
             },
           },
         },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
       }),
       prisma.activityLog.count({ where }),
     ]);
@@ -70,9 +54,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error fetching user activity:", error);
+    console.error("Error fetching activity logs:", error);
     return NextResponse.json(
-      { error: "Failed to fetch user activity" },
+      { error: "Failed to fetch activity logs" },
       { status: 500 }
     );
   }
