@@ -366,20 +366,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <Link href="/admin/dashboard" className="flex w-full items-center gap-2 px-3 py-2 rounded-md hover:bg-white/5 transition-colors">
-              {/* Logo with image from public/image/logo.png */}
-              <div className="relative size-6 overflow-hidden rounded-md">
-                <Image
-                  src="/image/logo.png"
-                  alt="PlanMod Logo"
-                  fill
-                  sizes="24px"
-                  className="object-cover"
-                  priority
-                />
-              </div>
-              <span className="text-base font-semibold">Planmods</span>
-            </Link>
+          <Link href="/" className="group flex shrink-0 items-center">
+            <span className="relative flex h-12 w-32 md:h-14 md:w-36 items-center justify-center transition-transform duration-200 group-hover:scale-105">
+              <Image
+                src="/image/logo1.png"
+                alt="PlanMod"
+                fill
+                sizes="(max-width: 766px) 126px, 142px"
+                className="object-contain"
+                priority
+              />
+            </span>
+          </Link>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

@@ -18,6 +18,7 @@ import {
   LogOut,
   Menu,
   X,
+  Layers,
 } from "lucide-react";
 
 import {
@@ -56,13 +57,22 @@ const userNavItems = [
 
 // Function to get account menu items based on user role
 const getAccountMenuItems = (role?: string) => {
-  const dashboardPath = role === "ADMIN" ? "/admin/dashboard" : "/user/dashboard";
+  const dashboardPath =
+    role === "ADMIN" ? "/admin/dashboard" : "/user/dashboard";
 
   return [
     { href: dashboardPath, label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/projects", label: "Projects", icon: FolderKanban },
-    { href: "/dashboard/projects/new", label: "Create Project", icon: FolderPlus },
-    { href: "/dashboard/repositories", label: "GitHub Repositories", icon: GithubIcon },
+    {
+      href: "/dashboard/projects/new",
+      label: "Create Project",
+      icon: FolderPlus,
+    },
+    {
+      href: "/dashboard/repositories",
+      label: "GitHub Repositories",
+      icon: GithubIcon,
+    },
     { href: "/dashboard/downloads", label: "Downloads", icon: Download },
   ];
 };
@@ -116,19 +126,16 @@ export function Navbar() {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-8">
-          <Link href="/" className="group flex shrink-0 items-center gap-2.5">
-            <span className="relative flex size-7 items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-105">
+          <Link href="/" className="group flex shrink-0 items-center">
+            <span className="relative flex h-12 w-32 md:h-14 md:w-36 items-center justify-center transition-transform duration-200 group-hover:scale-105">
               <Image
-                src="/image/logo.png"
+                src="/image/logo1.png"
                 alt="PlanMod"
                 fill
-                sizes="28px"
+                sizes="(max-width: 766px) 126px, 142px"
                 className="object-contain"
                 priority
               />
-            </span>
-            <span className="hidden text-[15px] font-semibold tracking-tight text-white sm:inline">
-              Planmods
             </span>
           </Link>
 
@@ -219,7 +226,10 @@ export function Navbar() {
                 <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 outline-none transition-colors duration-200 hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-white/30">
                   <div className="pointer-events-none flex items-center gap-1.5">
                     <Avatar className="size-7 ring-1 ring-white/10">
-                      <AvatarImage src={user?.image || ""} alt={user?.name ?? "User"} />
+                      <AvatarImage
+                        src={user?.image || ""}
+                        alt={user?.name ?? "User"}
+                      />
                       <AvatarFallback className="bg-[#2a2a2a] text-[11px] text-white">
                         {initials}
                       </AvatarFallback>

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 
-// Import provider yang baru dibuat
 import { NextAuthProvider } from "@/components/session-provider";
+import SplashScreen from "@/components/splash-screen";
 
 const fontSans = Geist({
   variable: "--font-sans",
@@ -24,10 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" className="dark" suppressHydrationWarning>
-      {/* Tambahan font-sans di sini agar terbaca oleh Tailwind */}
       <body className={`${fontSans.variable} font-sans antialiased`}>
         <NextAuthProvider>
-          {children}
+          <SplashScreen>{children}</SplashScreen>
         </NextAuthProvider>
       </body>
     </html>
