@@ -1,4 +1,3 @@
-// app/admin/api-keys/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -38,7 +37,6 @@ import {
 import {
   Search,
   MoreVertical,
-  Eye,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
@@ -46,10 +44,6 @@ import {
   Ban,
   RotateCcw,
   Trash2,
-  Clock,
-  CheckCircle,
-  XCircle,
-  User,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -86,10 +80,6 @@ export default function ApiKeysPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [processing, setProcessing] = useState(false);
 
-  useEffect(() => {
-    fetchApiKeys();
-  }, [search, page, revokedFilter]);
-
   const fetchApiKeys = async () => {
     try {
       setLoading(true);
@@ -111,6 +101,10 @@ export default function ApiKeysPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchApiKeys();
+  }, [search, page, revokedFilter]);
 
   const handleRevokeKey = async (keyId: string) => {
     setProcessing(true);
@@ -442,7 +436,11 @@ export default function ApiKeysPage() {
               Cancel
             </Button>
             <Button
-              onClick={() => handleRevokeKey(selectedKey?.id!)}
+              onClick={() => {
+                if (selectedKey?.id) {
+                  handleRevokeKey(selectedKey.id);
+                }
+              }}
               disabled={processing}
               className="bg-red-500 hover:bg-red-600"
             >
@@ -481,7 +479,11 @@ export default function ApiKeysPage() {
               Cancel
             </Button>
             <Button
-              onClick={() => handleRestoreKey(selectedKey?.id!)}
+              onClick={() => {
+                if (selectedKey?.id) {
+                  handleRestoreKey(selectedKey.id);
+                }
+              }}
               disabled={processing}
               className="bg-green-500 hover:bg-green-600"
             >
@@ -520,7 +522,11 @@ export default function ApiKeysPage() {
               Cancel
             </Button>
             <Button
-              onClick={() => handleDeleteKey(selectedKey?.id!)}
+              onClick={() => {
+                if (selectedKey?.id) {
+                  handleDeleteKey(selectedKey.id);
+                }
+              }}
               disabled={processing}
               className="bg-red-500 hover:bg-red-600"
             >

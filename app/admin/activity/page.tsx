@@ -1,7 +1,6 @@
-// app/admin/activity/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Table,
@@ -42,7 +41,7 @@ import { toast } from "sonner";
 interface Activity {
   id: string;
   action: string;
-  metadata: any;
+  metadata: Record<string, unknown> | null;
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string;
@@ -66,11 +65,7 @@ export default function AllActivitiesPage() {
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
-  useEffect(() => {
-    fetchActivities();
-  }, [search, page, actionFilter]);
-
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -95,7 +90,11 @@ export default function AllActivitiesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, page, actionFilter]);
+
+  useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
 
   const getActionColor = (action: string) => {
     if (!action) return "bg-gray-500/20 text-gray-400 border-gray-500/30";
