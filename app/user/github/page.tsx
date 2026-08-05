@@ -1,4 +1,3 @@
-// app/user/github/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -354,8 +353,8 @@ export default function GitHubPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <RefreshCw className="h-8 w-8 animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-[#0a0a0a]">
+        <RefreshCw className="h-8 w-8 animate-spin text-white/60" />
       </div>
     );
   }
@@ -363,545 +362,547 @@ export default function GitHubPage() {
   const isGitHubConnected = connectedProviders.includes("github");
 
   return (
-    <div className="space-y-6 p-4 lg:p-6">
-      {/* ✅ Alert Dialog untuk Disconnect */}
-      <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
-        <AlertDialogContent className="bg-black border-white/10 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-400" />
-              Disconnect Repository
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-white/60">
-              Are you sure you want to disconnect this repository? This action cannot be undone.
-              <br />
-              <br />
-              The repository will remain on GitHub, but it will no longer be connected to your project.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel 
-              onClick={() => setShowDisconnectDialog(false)}
-              className="border-white/10 text-white hover:bg-white/10 hover:text-white"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDisconnect}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              <Unlink className="h-4 w-4 mr-2" />
-              Disconnect
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+    <div className="min-h-screen bg-[#0a0a0a]">
+      <div className="space-y-6 p-4 lg:p-6 max-w-7xl mx-auto">
+        {/* ✅ Alert Dialog untuk Disconnect */}
+        <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+          <AlertDialogContent className="bg-[#0a0a0a] border-white/10 text-white">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+                Disconnect Repository
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-white/60">
+                Are you sure you want to disconnect this repository? This action cannot be undone.
+                <br />
+                <br />
+                The repository will remain on GitHub, but it will no longer be connected to your project.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel 
+                onClick={() => setShowDisconnectDialog(false)}
+                className="border-white/10 text-white hover:bg-white/10 hover:text-white bg-transparent"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDisconnect}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                <Unlink className="h-4 w-4 mr-2" />
+                Disconnect
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {/* GitHub Success Dialog */}
-      {gitHubData && (
-        <GitHubSuccessDialog
-          open={showSuccessDialog}
-          onOpenChange={setShowSuccessDialog}
-          repoUrl={gitHubData.repoUrl}
-          cloneUrl={gitHubData.cloneUrl}
-          gitCommands={gitHubData.gitCommands}
-          projectName={selectedProject?.name || "Project"}
-          projectId={selectedProject?.slug || "project"}
-          onDownload={() => {
-            if (gitHubData.downloadUrl) {
-              window.open(gitHubData.downloadUrl, "_blank");
-              toast.success("Download started!");
-            }
-          }}
-          isDownloading={false}
-        />
-      )}
+        {/* GitHub Success Dialog */}
+        {gitHubData && (
+          <GitHubSuccessDialog
+            open={showSuccessDialog}
+            onOpenChange={setShowSuccessDialog}
+            repoUrl={gitHubData.repoUrl}
+            cloneUrl={gitHubData.cloneUrl}
+            gitCommands={gitHubData.gitCommands}
+            projectName={selectedProject?.name || "Project"}
+            projectId={selectedProject?.slug || "project"}
+            onDownload={() => {
+              if (gitHubData.downloadUrl) {
+                window.open(gitHubData.downloadUrl, "_blank");
+                toast.success("Download started!");
+              }
+            }}
+            isDownloading={false}
+          />
+        )}
 
-      {/* Deploy Dialog */}
-      <Dialog open={showDeployDialog} onOpenChange={setShowDeployDialog}>
-        <DialogContent className="bg-black border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <Rocket className="h-5 w-5 text-white/60" />
-              Deploy to GitHub
-            </DialogTitle>
-            <DialogDescription className="text-white/60">
-              Create a new GitHub repository for "{selectedProject?.name}"
-            </DialogDescription>
-          </DialogHeader>
+        {/* Deploy Dialog */}
+        <Dialog open={showDeployDialog} onOpenChange={setShowDeployDialog}>
+          <DialogContent className="bg-[#0a0a0a] border-white/10 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-white flex items-center gap-2">
+                <Rocket className="h-5 w-5 text-white/60" />
+                Deploy to GitHub
+              </DialogTitle>
+              <DialogDescription className="text-white/60">
+                Create a new GitHub repository for "{selectedProject?.name}"
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm text-white/80">Repository Name</label>
-              <input
-                type="text"
-                value={deployRepoName}
-                onChange={(e) => setDeployRepoName(e.target.value)}
-                className="w-full px-3 py-2 rounded-md bg-white/5 border border-white/10 text-white focus:border-white/30 focus:outline-none"
-                placeholder="my-awesome-mod"
-              />
-              <p className="text-xs text-white/40">
-                This will create a repository at: github.com/yourusername/
-                {deployRepoName}
-              </p>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm text-white/80">Repository Name</label>
+                <input
+                  type="text"
+                  value={deployRepoName}
+                  onChange={(e) => setDeployRepoName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md bg-white/5 border border-white/10 text-white focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/20"
+                  placeholder="my-awesome-mod"
+                />
+                <p className="text-xs text-white/40">
+                  This will create a repository at: github.com/yourusername/
+                  {deployRepoName}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={deployPrivate}
+                  onChange={(e) => setDeployPrivate(e.target.checked)}
+                  className="h-4 w-4 rounded border-white/10 bg-white/5 text-white focus:ring-white/20"
+                />
+                <label className="text-sm text-white/80">
+                  Private repository
+                </label>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={deployPrivate}
-                onChange={(e) => setDeployPrivate(e.target.checked)}
-                className="h-4 w-4 rounded border-white/10 bg-white/5 text-white focus:ring-white/20"
-              />
-              <label className="text-sm text-white/80">
-                Private repository
-              </label>
-            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeployDialog(false)}
+                className="border-white/10 text-white hover:bg-white/10 bg-transparent"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeploy}
+                disabled={!deployRepoName || deploying === selectedProject?.id}
+                className="bg-white text-black hover:bg-white/90"
+              >
+                {deploying === selectedProject?.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4 mr-2" />
+                    Create Repository
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+              <GithubIcon className="h-8 w-8 text-white" />
+              GitHub Integration
+            </h1>
+            <p className="text-sm text-white/50 mt-1">
+              Manage your GitHub repositories and integrations
+            </p>
           </div>
-
-          <DialogFooter>
+          <div className="flex flex-wrap gap-2">
             <Button
+              onClick={() => router.push("/user/generator")}
               variant="outline"
-              onClick={() => setShowDeployDialog(false)}
-              className="border-white/10 text-white hover:bg-white/10"
+              className="border-white/10 text-white hover:bg-white/10 bg-transparent"
             >
-              Cancel
+              <Plus className="h-4 w-4 mr-2" />
+              Generate Project
             </Button>
-            <Button
-              onClick={confirmDeploy}
-              disabled={!deployRepoName || deploying === selectedProject?.id}
-              className="bg-white text-black hover:bg-white/90"
+          </div>
+        </div>
+
+        <Tabs defaultValue="projects" className="space-y-4">
+          <TabsList className="bg-[#1a1a1a] border-white/10 p-1">
+            <TabsTrigger
+              value="projects"
+              className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white rounded-md px-3 py-1.5"
             >
-              {deploying === selectedProject?.id ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Rocket className="h-4 w-4 mr-2" />
-                  Create Repository
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <FolderGit2 className="h-4 w-4 mr-2" />
+              Projects
+            </TabsTrigger>
+            <TabsTrigger
+              value="repositories"
+              className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white rounded-md px-3 py-1.5"
+            >
+              <GitBranch className="h-4 w-4 mr-2" />
+              Repositories
+            </TabsTrigger>
+            <TabsTrigger
+              value="accounts"
+              className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white rounded-md px-3 py-1.5"
+            >
+              <Link className="h-4 w-4 mr-2" />
+              Connected Accounts
+            </TabsTrigger>
+            <TabsTrigger
+              value="webhooks"
+              className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white rounded-md px-3 py-1.5"
+            >
+              <GitPullRequest className="h-4 w-4 mr-2" />
+              Webhooks
+            </TabsTrigger>
+          </TabsList>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-            <GithubIcon className="h-8 w-8" />
-            GitHub Integration
-          </h1>
-          <p className="text-sm text-white/50 mt-1">
-            Manage your GitHub repositories and integrations
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={() => router.push("/user/generator")}
-            variant="outline"
-            className="border-white/10 text-white hover:bg-white/10"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Generate Project
-          </Button>
-        </div>
-      </div>
+          {/* PROJECTS TAB */}
+          <TabsContent value="projects" className="mt-4">
+            <Card className="bg-[#0f0f0f] border-white/10 shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <FolderGit2 className="h-5 w-5 text-white/60" />
+                  Your Projects
+                </CardTitle>
+                <CardDescription className="text-white/40">
+                  Deploy your projects to GitHub or view existing repositories
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {projects.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-white/40">
+                    <FolderGit2 className="h-12 w-12 opacity-20 mb-4" />
+                    <p className="text-sm font-medium">No projects found</p>
+                    <p className="text-xs mt-1">
+                      Generate a project first to deploy it to GitHub
+                    </p>
+                    <Button
+                      onClick={() => router.push("/user/generator")}
+                      variant="outline"
+                      className="mt-4 border-white/10 text-white hover:bg-white/10 bg-transparent"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Generate Project
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {projects.map((project) => {
+                      const isDeployed = project.githubRepository !== null;
+                      const isDeploying = deploying === project.id;
 
-      <Tabs defaultValue="projects" className="space-y-4">
-        <TabsList className="bg-black/40 border-white/10">
-          <TabsTrigger
-            value="projects"
-            className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white"
-          >
-            <FolderGit2 className="h-4 w-4 mr-2" />
-            Projects
-          </TabsTrigger>
-          <TabsTrigger
-            value="repositories"
-            className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white"
-          >
-            <GitBranch className="h-4 w-4 mr-2" />
-            Repositories
-          </TabsTrigger>
-          <TabsTrigger
-            value="accounts"
-            className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white"
-          >
-            <Link className="h-4 w-4 mr-2" />
-            Connected Accounts
-          </TabsTrigger>
-          <TabsTrigger
-            value="webhooks"
-            className="data-[state=active]:bg-white/10 text-white/60 data-[state=active]:text-white"
-          >
-            <GitPullRequest className="h-4 w-4 mr-2" />
-            Webhooks
-          </TabsTrigger>
-        </TabsList>
+                      return (
+                        <div
+                          key={project.id}
+                          className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors gap-3"
+                        >
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-white font-medium truncate">
+                                {project.name}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="text-white/40 border-white/10 text-[10px]"
+                              >
+                                {project.platform} · {project.loader}
+                              </Badge>
+                              {isDeployed ? (
+                                <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Deployed
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-yellow-400 border-yellow-400/30 text-[10px]"
+                                >
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Not Deployed
+                                </Badge>
+                              )}
+                            </div>
+                            {isDeployed && project.githubRepository && (
+                              <div className="flex items-center gap-3 text-xs text-white/40">
+                                <a
+                                  href={project.githubRepository.repositoryUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:text-white/70 transition-colors flex items-center gap-1"
+                                >
+                                  {project.githubRepository.repositoryUrl}
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {isDeployed ? (
+                              <>
+                                {getStatusBadge(
+                                  project.githubRepository?.lastSyncedAt || null,
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    window.open(
+                                      project.githubRepository?.repositoryUrl,
+                                      "_blank",
+                                    )
+                                  }
+                                  className="text-white/40 hover:text-white hover:bg-white/10"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => handleDeploy(project)}
+                                disabled={isDeploying || !isGitHubConnected}
+                                className="bg-white text-black hover:bg-white/90"
+                              >
+                                {isDeploying ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    Deploying...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Rocket className="h-4 w-4 mr-1" />
+                                    Deploy to GitHub
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* PROJECTS TAB */}
-        <TabsContent value="projects">
-          <Card className="bg-black/40 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <FolderGit2 className="h-5 w-5 text-white/60" />
-                Your Projects
-              </CardTitle>
-              <CardDescription className="text-white/40">
-                Deploy your projects to GitHub or view existing repositories
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {projects.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-white/40">
-                  <FolderGit2 className="h-12 w-12 opacity-20 mb-4" />
-                  <p className="text-sm font-medium">No projects found</p>
-                  <p className="text-xs mt-1">
-                    Generate a project first to deploy it to GitHub
-                  </p>
-                  <Button
-                    onClick={() => router.push("/user/generator")}
-                    variant="outline"
-                    className="mt-4 border-white/10 text-white hover:bg-white/10"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Generate Project
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {projects.map((project) => {
-                    const isDeployed = project.githubRepository !== null;
-                    const isDeploying = deploying === project.id;
-
-                    return (
+          {/* REPOSITORIES TAB */}
+          <TabsContent value="repositories" className="mt-4">
+            <Card className="bg-[#0f0f0f] border-white/10 shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <GitBranch className="h-5 w-5 text-white/60" />
+                  Connected Repositories
+                </CardTitle>
+                <CardDescription className="text-white/40">
+                  Click on a repository to view its files, commits, and branches
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {repositories.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-white/40">
+                    <GitBranch className="h-12 w-12 opacity-20 mb-4" />
+                    <p className="text-sm font-medium">
+                      No repositories connected
+                    </p>
+                    <p className="text-xs mt-1">
+                      Generate a project and deploy it to GitHub
+                    </p>
+                    <Button
+                      onClick={() => router.push("/user/generator")}
+                      variant="outline"
+                      className="mt-4 border-white/10 text-white hover:bg-white/10 bg-transparent"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Generate Project
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {repositories.map((repo) => (
                       <div
-                        key={project.id}
-                        className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors gap-3"
+                        key={repo.id}
+                        className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors gap-3 cursor-pointer"
+                        onClick={() =>
+                          router.push(`/user/github/repositories/${repo.id}`)
+                        }
                       >
-                        <div className="space-y-1 min-w-0">
+                        <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-white font-medium truncate">
-                              {project.name}
+                              {repo.repositoryName}
                             </span>
-                            <Badge
-                              variant="outline"
-                              className="text-white/40 border-white/10 text-[10px]"
-                            >
-                              {project.platform} · {project.loader}
-                            </Badge>
-                            {isDeployed ? (
-                              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Deployed
+                            {repo.private ? (
+                              <Badge
+                                variant="outline"
+                                className="text-white/40 border-white/10 text-[10px]"
+                              >
+                                Private
                               </Badge>
                             ) : (
                               <Badge
                                 variant="outline"
-                                className="text-yellow-400 border-yellow-400/30 text-[10px]"
+                                className="text-green-400 border-green-400/30 text-[10px]"
                               >
-                                <AlertCircle className="h-3 w-3 mr-1" />
-                                Not Deployed
+                                Public
+                              </Badge>
+                            )}
+                            {repo.project && (
+                              <Badge className="bg-white/10 text-white/70 border-white/20 text-[10px]">
+                                {repo.project.name}
                               </Badge>
                             )}
                           </div>
-                          {isDeployed && project.githubRepository && (
-                            <div className="flex items-center gap-3 text-xs text-white/40">
-                              <a
-                                href={project.githubRepository.repositoryUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:text-white/70 transition-colors flex items-center gap-1"
-                              >
-                                {project.githubRepository.repositoryUrl}
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {isDeployed ? (
-                            <>
-                              {getStatusBadge(
-                                project.githubRepository?.lastSyncedAt || null,
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  window.open(
-                                    project.githubRepository?.repositoryUrl,
-                                    "_blank",
-                                  )
-                                }
-                                className="text-white/40 hover:text-white hover:bg-white/10"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <Button
-                              size="sm"
-                              onClick={() => handleDeploy(project)}
-                              disabled={isDeploying || !isGitHubConnected}
-                              className="bg-white text-black hover:bg-white/90"
+                          <div className="flex items-center gap-3 text-xs text-white/40">
+                            <a
+                              href={repo.repositoryUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-white/70 transition-colors flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              {isDeploying ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                  Deploying...
-                                </>
-                              ) : (
-                                <>
-                                  <Rocket className="h-4 w-4 mr-1" />
-                                  Deploy to GitHub
-                                </>
-                              )}
-                            </Button>
-                          )}
+                              {repo.repositoryUrl}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* REPOSITORIES TAB */}
-        <TabsContent value="repositories">
-          <Card className="bg-black/40 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <GitBranch className="h-5 w-5 text-white/60" />
-                Connected Repositories
-              </CardTitle>
-              <CardDescription className="text-white/40">
-                Click on a repository to view its files, commits, and branches
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {repositories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-white/40">
-                  <GitBranch className="h-12 w-12 opacity-20 mb-4" />
-                  <p className="text-sm font-medium">
-                    No repositories connected
-                  </p>
-                  <p className="text-xs mt-1">
-                    Generate a project and deploy it to GitHub
-                  </p>
-                  <Button
-                    onClick={() => router.push("/user/generator")}
-                    variant="outline"
-                    className="mt-4 border-white/10 text-white hover:bg-white/10"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Generate Project
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {repositories.map((repo) => (
-                    <div
-                      key={repo.id}
-                      className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors gap-3 cursor-pointer"
-                      onClick={() =>
-                        router.push(`/user/github/repositories/${repo.id}`)
-                      }
-                    >
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-white font-medium truncate">
-                            {repo.repositoryName}
-                          </span>
-                          {repo.private ? (
-                            <Badge
-                              variant="outline"
-                              className="text-white/40 border-white/10 text-[10px]"
-                            >
-                              Private
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-green-400 border-green-400/30 text-[10px]"
-                            >
-                              Public
-                            </Badge>
-                          )}
-                          {repo.project && (
-                            <Badge className="bg-white/10 text-white/70 border-white/20 text-[10px]">
-                              {repo.project.name}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-white/40">
-                          <a
-                            href={repo.repositoryUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:text-white/70 transition-colors flex items-center gap-1"
-                            onClick={(e) => e.stopPropagation()}
+                        <div className="flex items-center gap-2 flex-wrap shrink-0">
+                          <Badge
+                            variant="outline"
+                            className="text-white/30 border-white/10 text-[10px]"
                           >
-                            {repo.repositoryUrl}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
+                            <Code2 className="h-3 w-3 mr-1" />
+                            {repo.defaultBranch || "main"}
+                          </Badge>
+                          {getStatusBadge(repo.lastSyncedAt)}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/user/github/repositories/${repo.id}`);
+                            }}
+                            className="text-white/40 hover:text-white hover:bg-white/10"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSync(repo.id);
+                            }}
+                            disabled={syncing === repo.id}
+                            className="text-white/40 hover:text-white hover:bg-white/10"
+                          >
+                            <RefreshCw
+                              className={`h-4 w-4 ${syncing === repo.id ? "animate-spin" : ""}`}
+                            />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDisconnectClick(repo.id);
+                            }}
+                            className="text-red-400/60 hover:text-red-400 hover:bg-red-500/10"
+                          >
+                            <Unlink className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap shrink-0">
-                        <Badge
-                          variant="outline"
-                          className="text-white/30 border-white/10 text-[10px]"
-                        >
-                          <Code2 className="h-3 w-3 mr-1" />
-                          {repo.defaultBranch || "main"}
-                        </Badge>
-                        {getStatusBadge(repo.lastSyncedAt)}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/user/github/repositories/${repo.id}`);
-                          }}
-                          className="text-white/40 hover:text-white hover:bg-white/10"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSync(repo.id);
-                          }}
-                          disabled={syncing === repo.id}
-                          className="text-white/40 hover:text-white hover:bg-white/10"
-                        >
-                          <RefreshCw
-                            className={`h-4 w-4 ${syncing === repo.id ? "animate-spin" : ""}`}
-                          />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDisconnectClick(repo.id);
-                          }}
-                          className="text-red-400/60 hover:text-red-400 hover:bg-red-500/10"
-                        >
-                          <Unlink className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ACCOUNTS TAB */}
-        <TabsContent value="accounts">
-          <Card className="bg-black/40 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Link className="h-5 w-5 text-white/60" />
-                Connected Accounts
-              </CardTitle>
-              <CardDescription className="text-white/40">
-                Accounts connected to your profile
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!isGitHubConnected ? (
-                <div className="flex flex-col items-center justify-center py-12 text-white/40">
-                  <GithubIcon className="h-12 w-12 opacity-20 mb-4" />
-                  <p className="text-sm font-medium">GitHub not connected</p>
-                  <p className="text-xs mt-1">
-                    Connect your GitHub account to enable integrations
-                  </p>
-                  <Button
-                    onClick={() => router.push("/api/auth/signin/github")}
-                    className="mt-4 bg-white text-black hover:bg-white/90"
-                  >
-                    <GithubIcon className="h-4 w-4 mr-2" />
-                    Connect GitHub
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-black/40 flex items-center justify-center border border-white/10">
-                        <GithubIcon className="h-5 w-5 text-white/60" />
-                      </div>
-                      <div>
-                        <p className="text-white font-medium">
-                          {session?.user?.name || "GitHub User"}
-                        </p>
-                        <p className="text-xs text-white/40">
-                          {session?.user?.email || "No email"}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Connected
-                    </Badge>
+                    ))}
                   </div>
-                  {accounts.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs text-white/30 font-medium uppercase tracking-wider">
-                        Other Connected Accounts
-                      </p>
-                      {accounts.map((account) => (
-                        <div
-                          key={account.provider}
-                          className="flex items-center justify-between p-2 rounded-lg border border-white/5 bg-white/[0.02]"
-                        >
-                          <span className="text-sm text-white/60 capitalize">
-                            {account.provider}
-                          </span>
-                          <span className="text-xs text-white/30">
-                            Connected{" "}
-                            {formatDistanceToNow(new Date(account.createdAt), {
-                              addSuffix: true,
-                            })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* WEBHOOKS TAB */}
-        <TabsContent value="webhooks">
-          <Card className="bg-black/40 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <GitPullRequest className="h-5 w-5 text-white/60" />
-                Webhook Status
-              </CardTitle>
-              <CardDescription className="text-white/40">
-                Webhooks configured for your repositories
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <WebhookStatus />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          {/* ACCOUNTS TAB */}
+          <TabsContent value="accounts" className="mt-4">
+            <Card className="bg-[#0f0f0f] border-white/10 shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Link className="h-5 w-5 text-white/60" />
+                  Connected Accounts
+                </CardTitle>
+                <CardDescription className="text-white/40">
+                  Accounts connected to your profile
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!isGitHubConnected ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-white/40">
+                    <GithubIcon className="h-12 w-12 opacity-20 mb-4" />
+                    <p className="text-sm font-medium">GitHub not connected</p>
+                    <p className="text-xs mt-1">
+                      Connect your GitHub account to enable integrations
+                    </p>
+                    <Button
+                      onClick={() => router.push("/api/auth/signin/github")}
+                      className="mt-4 bg-white text-black hover:bg-white/90"
+                    >
+                      <GithubIcon className="h-4 w-4 mr-2" />
+                      Connect GitHub
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-black/40 flex items-center justify-center border border-white/10">
+                          <GithubIcon className="h-5 w-5 text-white/60" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">
+                            {session?.user?.name || "GitHub User"}
+                          </p>
+                          <p className="text-xs text-white/40">
+                            {session?.user?.email || "No email"}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Connected
+                      </Badge>
+                    </div>
+                    {accounts.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-white/30 font-medium uppercase tracking-wider">
+                          Other Connected Accounts
+                        </p>
+                        {accounts.map((account) => (
+                          <div
+                            key={account.provider}
+                            className="flex items-center justify-between p-2 rounded-lg border border-white/5 bg-white/[0.02]"
+                          >
+                            <span className="text-sm text-white/60 capitalize">
+                              {account.provider}
+                            </span>
+                            <span className="text-xs text-white/30">
+                              Connected{" "}
+                              {formatDistanceToNow(new Date(account.createdAt), {
+                                addSuffix: true,
+                              })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* WEBHOOKS TAB */}
+          <TabsContent value="webhooks" className="mt-4">
+            <Card className="bg-[#0f0f0f] border-white/10 shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <GitPullRequest className="h-5 w-5 text-white/60" />
+                  Webhook Status
+                </CardTitle>
+                <CardDescription className="text-white/40">
+                  Webhooks configured for your repositories
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WebhookStatus />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
