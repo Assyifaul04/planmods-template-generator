@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { spawn } from "child_process";
+import simpleGit from 'simple-git';
 import { processClonedTemplate } from "@/lib/templates/fabric/clone-processor";
 import { put, del, list } from '@vercel/blob';
 import prisma from "@/lib/prisma";
@@ -95,6 +95,21 @@ async function deleteTemplateFromBlob(blobPath: string) {
   }
 }
 
+async function cloneRepositoryWithSimpleGit(repoUrl: string, targetPath: string, onProgress?: (message: string) => void) {
+  const git = simpleGit({
+    baseDir: targetPath,
+    binary: 'git',
+    maxConcurrentProcesses: 1,
+  });
+
+  // Clone with depth 1
+  await git.clone(repoUrl, targetPath, ['--depth', '1']);
+  
+  // Get the remote URL
+  const remotes = await git.getRemotes(true);
+  return remotes;
+}
+
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
 
@@ -176,157 +191,134 @@ export async function POST(request: NextRequest) {
           fs.mkdirSync(fullPath, { recursive: true });
           send({ type: "log", message: `📁 Created temporary directory: ${fullPath}` });
 
-          // 3. Clone repository ke temporary directory
+          // 3. Clone repository menggunakan simple-git
           send({ type: "log", message: `🔄 Cloning repository: ${repoUrl}` });
           send({ type: "log", message: `$ git clone --depth 1 ${repoUrl} ${fullPath}` });
 
-          const child = spawn("git", ["clone", "--progress", "--depth", "1", repoUrl, fullPath]);
+          try {
+            // Clone repository
+            const git = simpleGit({
+              baseDir: path.dirname(fullPath),
+              binary: 'git',
+            });
 
-          const emitLines = (data: Buffer) => {
-            data
-              .toString()
-              .split(/\r?\n/)
-              .map((l) => l.trim())
-              .filter(Boolean)
-              .forEach((line) => send({ type: "log", message: line }));
-          };
+            // Clone with progress
+            await git.clone(repoUrl, fullPath, ['--depth', '1'], (update) => {
+              send({ type: "log", message: update });
+            });
 
-          child.stdout.on("data", emitLines);
-          child.stderr.on("data", emitLines);
-
-          child.on("error", (err) => {
-            send({ type: "error", message: `❌ Failed to start git: ${err.message}` });
+            send({ type: "log", message: `✅ Clone completed successfully` });
+          } catch (cloneError: any) {
+            send({ type: "error", message: `❌ Clone failed: ${cloneError.message}` });
             if (fs.existsSync(fullPath)) {
               fs.rmSync(fullPath, { recursive: true, force: true });
             }
             finish();
+            return;
+          }
+
+          // 4. Proses hasil clone
+          send({ type: "log", message: `🔄 Processing cloned template for Minecraft ${minecraftVersion}...` });
+
+          const result = processClonedTemplate({
+            templatePath: fullPath,
+            templateName,
+            minecraftVersion,
+            loaderVersion: loaderVersion || "0.16.9",
+            platform,
+            loader,
           });
 
-          child.on("close", async (code) => {
-            if (code !== 0) {
-              send({ type: "error", message: `❌ git clone exited with code ${code}` });
-              if (fs.existsSync(fullPath)) {
-                fs.rmSync(fullPath, { recursive: true, force: true });
-              }
-              finish();
-              return;
-            }
+          if (!result.success) {
+            send({ type: "error", message: result.message });
+            finish();
+            return;
+          }
 
-            try {
-              // 4. Proses hasil clone
-              send({ type: "log", message: `🔄 Processing cloned template for Minecraft ${minecraftVersion}...` });
+          // Kirim log hasil processing
+          if (result.modifiedFiles && result.modifiedFiles.length > 0) {
+            send({ type: "log", message: `📝 Modified: ${result.modifiedFiles.length} files` });
+            result.modifiedFiles.forEach((f: string) => send({ type: "log", message: `   - ${f}` }));
+          }
+          if (result.addedFiles && result.addedFiles.length > 0) {
+            send({ type: "log", message: `➕ Added: ${result.addedFiles.length} files` });
+            result.addedFiles.forEach((f: string) => send({ type: "log", message: `   - ${f}` }));
+          }
+          if (result.removedFiles && result.removedFiles.length > 0) {
+            send({ type: "log", message: `❌ Removed: ${result.removedFiles.length} files` });
+            result.removedFiles.forEach((f: string) => send({ type: "log", message: `   - ${f}` }));
+          }
 
-              const result = processClonedTemplate({
-                templatePath: fullPath,
-                templateName,
-                minecraftVersion,
-                loaderVersion: loaderVersion || "0.16.9",
-                platform,
-                loader,
-              });
+          // 5. Hapus .git folder
+          const gitPath = path.join(fullPath, ".git");
+          if (fs.existsSync(gitPath)) {
+            fs.rmSync(gitPath, { recursive: true, force: true });
+            send({ type: "log", message: "🗑️ Removed .git directory" });
+          }
 
-              if (!result.success) {
-                send({ type: "error", message: result.message });
-                finish();
-                return;
-              }
+          // 6. Upload ke Vercel Blob
+          send({ type: "log", message: `☁️ Uploading to Vercel Blob: ${blobPath}` });
+          
+          const uploadResult = await uploadDirectoryToBlob(fullPath, blobPath);
+          
+          if (uploadResult.errors.length > 0) {
+            send({ 
+              type: "warning", 
+              message: `⚠️ ${uploadResult.errors.length} files failed to upload` 
+            });
+            uploadResult.errors.forEach((err) => {
+              send({ type: "log", message: `   ❌ ${err.path}: ${err.error}` });
+            });
+          }
 
-              // Kirim log hasil processing
-              if (result.modifiedFiles && result.modifiedFiles.length > 0) {
-                send({ type: "log", message: `📝 Modified: ${result.modifiedFiles.length} files` });
-                result.modifiedFiles.forEach((f: string) => send({ type: "log", message: `   - ${f}` }));
-              }
-              if (result.addedFiles && result.addedFiles.length > 0) {
-                send({ type: "log", message: `➕ Added: ${result.addedFiles.length} files` });
-                result.addedFiles.forEach((f: string) => send({ type: "log", message: `   - ${f}` }));
-              }
-              if (result.removedFiles && result.removedFiles.length > 0) {
-                send({ type: "log", message: `❌ Removed: ${result.removedFiles.length} files` });
-                result.removedFiles.forEach((f: string) => send({ type: "log", message: `   - ${f}` }));
-              }
-
-              // 5. Hapus .git folder
-              const gitPath = path.join(fullPath, ".git");
-              if (fs.existsSync(gitPath)) {
-                fs.rmSync(gitPath, { recursive: true, force: true });
-                send({ type: "log", message: "🗑️ Removed .git directory" });
-              }
-
-              // 6. Upload ke Vercel Blob
-              send({ type: "log", message: `☁️ Uploading to Vercel Blob: ${blobPath}` });
-              
-              const uploadResult = await uploadDirectoryToBlob(fullPath, blobPath);
-              
-              if (uploadResult.errors.length > 0) {
-                send({ 
-                  type: "warning", 
-                  message: `⚠️ ${uploadResult.errors.length} files failed to upload` 
-                });
-                uploadResult.errors.forEach((err) => {
-                  send({ type: "log", message: `   ❌ ${err.path}: ${err.error}` });
-                });
-              }
-
-              send({ 
-                type: "log", 
-                message: `✅ Uploaded ${uploadResult.uploadedFiles.length} files to Vercel Blob` 
-              });
-
-              // 7. Hapus temporary directory setelah upload
-              if (fs.existsSync(fullPath)) {
-                fs.rmSync(fullPath, { recursive: true, force: true });
-                send({ type: "log", message: "🗑️ Removed temporary directory" });
-              }
-
-              // 8. Simpan metadata ke database
-              const template = await prisma.template.create({
-                data: {
-                  name: templateName,
-                  platform: platformLower,
-                  loader: loaderLower,
-                  minecraftVersion,
-                  loaderVersion: loaderVersion || "0.16.9",
-                  blobPath,
-                  repoUrl,
-                  fileCount: uploadResult.uploadedFiles.length,
-                  userId: session.user.id,
-                  isActive: true,
-                },
-              });
-
-              // 9. Cek gradle
-              let gradleUrl = "";
-              const hasGradle = uploadResult.uploadedFiles.some(
-                (f) => f.path === "build.gradle" || f.path === "build.gradle.kts"
-              );
-              if (hasGradle) {
-                gradleUrl = repoUrl.replace(/\.git$/, "");
-              }
-
-              // 10. Kirim event selesai
-              send({
-                type: "done",
-                path: blobPath,
-                gradleUrl: gradleUrl || repoUrl,
-                message: `✅ Template successfully uploaded to Vercel Blob for Minecraft ${minecraftVersion}`,
-                uploadedFiles: uploadResult.uploadedFiles.length,
-                templateId: template.id,
-                blobUrl: `/api/templates/${blobPath}`,
-              });
-              
-              finish();
-            } catch (postError: any) {
-              send({
-                type: "error",
-                message: `❌ Post-clone error: ${postError.message || "Unknown error"}`,
-              });
-              // Cleanup on error
-              if (fs.existsSync(fullPath)) {
-                fs.rmSync(fullPath, { recursive: true, force: true });
-              }
-              finish();
-            }
+          send({ 
+            type: "log", 
+            message: `✅ Uploaded ${uploadResult.uploadedFiles.length} files to Vercel Blob` 
           });
+
+          // 7. Hapus temporary directory setelah upload
+          if (fs.existsSync(fullPath)) {
+            fs.rmSync(fullPath, { recursive: true, force: true });
+            send({ type: "log", message: "🗑️ Removed temporary directory" });
+          }
+
+          // 8. Simpan metadata ke database
+          const template = await prisma.template.create({
+            data: {
+              name: templateName,
+              platform: platformLower,
+              loader: loaderLower,
+              minecraftVersion,
+              loaderVersion: loaderVersion || "0.16.9",
+              blobPath,
+              repoUrl,
+              fileCount: uploadResult.uploadedFiles.length,
+              userId: session.user.id,
+              isActive: true,
+            },
+          });
+
+          // 9. Cek gradle
+          let gradleUrl = "";
+          const hasGradle = uploadResult.uploadedFiles.some(
+            (f) => f.path === "build.gradle" || f.path === "build.gradle.kts"
+          );
+          if (hasGradle) {
+            gradleUrl = repoUrl.replace(/\.git$/, "");
+          }
+
+          // 10. Kirim event selesai
+          send({
+            type: "done",
+            path: blobPath,
+            gradleUrl: gradleUrl || repoUrl,
+            message: `✅ Template successfully uploaded to Vercel Blob for Minecraft ${minecraftVersion}`,
+            uploadedFiles: uploadResult.uploadedFiles.length,
+            templateId: template.id,
+            blobUrl: `/api/templates/${blobPath}`,
+          });
+          
+          finish();
         } catch (error: any) {
           send({ type: "error", message: error.message || "Failed to clone repository" });
           // Cleanup on error
