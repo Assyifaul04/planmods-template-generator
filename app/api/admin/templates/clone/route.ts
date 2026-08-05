@@ -4,19 +4,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { spawn } from "child_process";
 import { processClonedTemplate } from "@/lib/templates/fabric/clone-processor";
 import { put, del, list } from '@vercel/blob';
 import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
-
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function getContentType(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase();
@@ -133,15 +127,9 @@ export async function POST(request: NextRequest) {
   const platformLower = platform.toLowerCase();
   const loaderLower = loader.toLowerCase();
 
-  // Path lokal untuk proses cloning
-  const templatePath = path.join(
-    "public",
-    "templates",
-    platformLower,
-    loaderLower,
-    minecraftVersion
-  );
-  const fullPath = path.join(process.cwd(), templatePath);
+  // ✅ GUNAKAN TEMPORARY DIRECTORY UNTUK CLONING
+  const tempDir = path.join(os.tmpdir(), `template-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+  const fullPath = tempDir;
 
   // Blob path
   const blobPath = `templates/${platformLower}/${loaderLower}/${minecraftVersion}`;
@@ -181,19 +169,16 @@ export async function POST(request: NextRequest) {
             send({ type: "log", message: `⚠️ No existing template found or error: ${deleteResult.error}` });
           }
 
-          // 2. Hapus folder lokal jika sudah ada
+          // 2. Buat temporary directory
           if (fs.existsSync(fullPath)) {
             fs.rmSync(fullPath, { recursive: true, force: true });
-            send({ type: "log", message: `🗑️ Removed existing local directory` });
           }
-
-          // 3. Buat folder lokal
           fs.mkdirSync(fullPath, { recursive: true });
-          send({ type: "log", message: `📁 Created local directory ${templatePath.replace(/\\/g, "/")}` });
+          send({ type: "log", message: `📁 Created temporary directory: ${fullPath}` });
 
-          // 4. Clone repository
+          // 3. Clone repository ke temporary directory
           send({ type: "log", message: `🔄 Cloning repository: ${repoUrl}` });
-          send({ type: "log", message: `$ git clone --depth 1 ${repoUrl} ${templatePath}` });
+          send({ type: "log", message: `$ git clone --depth 1 ${repoUrl} ${fullPath}` });
 
           const child = spawn("git", ["clone", "--progress", "--depth", "1", repoUrl, fullPath]);
 
@@ -228,7 +213,7 @@ export async function POST(request: NextRequest) {
             }
 
             try {
-              // 5. Proses hasil clone
+              // 4. Proses hasil clone
               send({ type: "log", message: `🔄 Processing cloned template for Minecraft ${minecraftVersion}...` });
 
               const result = processClonedTemplate({
@@ -260,14 +245,14 @@ export async function POST(request: NextRequest) {
                 result.removedFiles.forEach((f: string) => send({ type: "log", message: `   - ${f}` }));
               }
 
-              // 6. Hapus .git folder
+              // 5. Hapus .git folder
               const gitPath = path.join(fullPath, ".git");
               if (fs.existsSync(gitPath)) {
                 fs.rmSync(gitPath, { recursive: true, force: true });
                 send({ type: "log", message: "🗑️ Removed .git directory" });
               }
 
-              // 7. Upload ke Vercel Blob
+              // 6. Upload ke Vercel Blob
               send({ type: "log", message: `☁️ Uploading to Vercel Blob: ${blobPath}` });
               
               const uploadResult = await uploadDirectoryToBlob(fullPath, blobPath);
@@ -287,13 +272,13 @@ export async function POST(request: NextRequest) {
                 message: `✅ Uploaded ${uploadResult.uploadedFiles.length} files to Vercel Blob` 
               });
 
-              // 8. Hapus folder lokal setelah upload (opsional)
+              // 7. Hapus temporary directory setelah upload
               if (fs.existsSync(fullPath)) {
                 fs.rmSync(fullPath, { recursive: true, force: true });
-                send({ type: "log", message: "🗑️ Removed local temporary files" });
+                send({ type: "log", message: "🗑️ Removed temporary directory" });
               }
 
-              // 9. Simpan metadata ke database
+              // 8. Simpan metadata ke database
               const template = await prisma.template.create({
                 data: {
                   name: templateName,
@@ -309,7 +294,7 @@ export async function POST(request: NextRequest) {
                 },
               });
 
-              // 10. Cek gradle
+              // 9. Cek gradle
               let gradleUrl = "";
               const hasGradle = uploadResult.uploadedFiles.some(
                 (f) => f.path === "build.gradle" || f.path === "build.gradle.kts"
@@ -318,7 +303,7 @@ export async function POST(request: NextRequest) {
                 gradleUrl = repoUrl.replace(/\.git$/, "");
               }
 
-              // 11. Kirim event selesai
+              // 10. Kirim event selesai
               send({
                 type: "done",
                 path: blobPath,
@@ -335,17 +320,33 @@ export async function POST(request: NextRequest) {
                 type: "error",
                 message: `❌ Post-clone error: ${postError.message || "Unknown error"}`,
               });
+              // Cleanup on error
+              if (fs.existsSync(fullPath)) {
+                fs.rmSync(fullPath, { recursive: true, force: true });
+              }
               finish();
             }
           });
         } catch (error: any) {
           send({ type: "error", message: error.message || "Failed to clone repository" });
+          // Cleanup on error
+          if (fs.existsSync(fullPath)) {
+            fs.rmSync(fullPath, { recursive: true, force: true });
+          }
           finish();
         }
       })();
     },
     cancel() {
       closed = true;
+      // Cleanup on cancel
+      if (fs.existsSync(fullPath)) {
+        try {
+          fs.rmSync(fullPath, { recursive: true, force: true });
+        } catch {
+          // ignore
+        }
+      }
     },
   });
 
