@@ -6,6 +6,22 @@ import prisma from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
 import JSZip from "jszip";
+import { list, download } from '@vercel/blob';
+
+async function downloadTemplateFiles(blobPath: string) {
+  const { blobs } = await list({ prefix: blobPath });
+  const files: Record<string, Buffer> = {};
+  
+  for (const blob of blobs) {
+    const response = await fetch(blob.url);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const relativePath = blob.pathname.replace(`${blobPath}/`, '');
+    files[relativePath] = buffer;
+  }
+  
+  return files;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +41,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Gunakan findFirst karena userId + slug bukan unique constraint tunggal
+    // Get project from database
     const project = await prisma.project.findFirst({
       where: {
         userId: session.user.id,
@@ -37,6 +53,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
+    // Try to get from local filesystem first
     const projectDir = path.join(
       process.cwd(),
       "public",
@@ -45,37 +62,76 @@ export async function GET(request: NextRequest) {
       project.slug
     );
 
-    if (!fs.existsSync(projectDir)) {
-      return NextResponse.json(
-        { error: "Project files not found" },
-        { status: 404 }
-      );
-    }
-
     const zip = new JSZip();
 
-    function addFilesToZip(dir: string, zipFolder: JSZip) {
-      const files = fs.readdirSync(dir, { withFileTypes: true });
+    // Check if project exists locally
+    if (fs.existsSync(projectDir)) {
+      // Add local files to zip
+      function addFilesToZip(dir: string, zipFolder: JSZip) {
+        const files = fs.readdirSync(dir, { withFileTypes: true });
 
-      for (const file of files) {
-        if (file.name === '.git') continue;
-        
-        const fullPath = path.join(dir, file.name);
-        
-        if (file.isDirectory()) {
-          const subFolder = zipFolder.folder(file.name);
-          if (subFolder) {
-            addFilesToZip(fullPath, subFolder);
+        for (const file of files) {
+          if (file.name === '.git') continue;
+          
+          const fullPath = path.join(dir, file.name);
+          
+          if (file.isDirectory()) {
+            const subFolder = zipFolder.folder(file.name);
+            if (subFolder) {
+              addFilesToZip(fullPath, subFolder);
+            }
+          } else {
+            const content = fs.readFileSync(fullPath);
+            zipFolder.file(file.name, content);
           }
-        } else {
-          const content = fs.readFileSync(fullPath);
-          zipFolder.file(file.name, content);
         }
       }
+
+      addFilesToZip(projectDir, zip);
+    } else {
+      // If not local, download from blob
+      const templatePath = `templates/${project.platform.toLowerCase()}/${project.loader.toLowerCase()}/${project.minecraftVersion}`;
+      const templateFiles = await downloadTemplateFiles(templatePath);
+      
+      // Add template files to zip
+      for (const [filePath, content] of Object.entries(templateFiles)) {
+        zip.file(filePath, content);
+      }
+      
+      // Add README
+      const readmeContent = `# ${project.name}
+
+## Description
+${project.description || `A Minecraft ${project.platform} mod project using ${project.loader}.`}
+
+## Features
+- Built with ${project.loader} for Minecraft ${project.minecraftVersion}
+- Ready for development
+
+## Getting Started
+
+### Prerequisites
+- Java 17 or higher
+- Minecraft ${project.minecraftVersion}
+- ${project.loader} loader
+
+### Building
+\`\`\`bash
+./gradlew build
+\`\`\`
+
+### Running
+\`\`\`bash
+./gradlew runClient
+\`\`\`
+
+## License
+This project is licensed under the ${project.license || 'MIT'} License.
+`;
+      zip.file('README.md', readmeContent);
     }
 
-    addFilesToZip(projectDir, zip);
-
+    // Generate ZIP file
     const zipBuffer = await zip.generateAsync({
       type: "nodebuffer",
       compression: "DEFLATE",

@@ -6,14 +6,42 @@ import { Octokit } from "@octokit/rest";
 import prisma from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
+import { download, list } from '@vercel/blob';
 import JSZip from "jszip";
 import { exec } from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
+async function downloadTemplateFromBlob(blobPath: string) {
+  const { blobs } = await list({ prefix: blobPath });
+  const files: Record<string, string> = {};
+  
+  for (const blob of blobs) {
+    const response = await fetch(blob.url);
+    const content = await response.text();
+    const relativePath = blob.pathname.replace(`${blobPath}/`, '');
+    files[relativePath] = content;
+  }
+  
+  return files;
+}
+
+async function saveFilesToLocal(files: Record<string, string>, targetDir: string) {
+  for (const [filePath, content] of Object.entries(files)) {
+    const fullPath = path.join(targetDir, filePath);
+    const dir = path.dirname(fullPath);
+    
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    fs.writeFileSync(fullPath, content);
+  }
+}
+
 export async function POST(request: NextRequest) {
-  let projectId: string = ''; // Declare outside try-catch
+  let projectId: string = '';
   let projectDir: string = '';
   
   try {
@@ -34,7 +62,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get project from database - menggunakan findFirst karena userId + slug bukan unique constraint tunggal
+    // Get project from database
     const project = await prisma.project.findFirst({
       where: {
         userId: session.user.id,
@@ -58,12 +86,17 @@ export async function POST(request: NextRequest) {
       project.slug
     );
 
+    // Create project directory
     if (!fs.existsSync(projectDir)) {
-      return NextResponse.json(
-        { error: "Project files not found" },
-        { status: 404 }
-      );
+      fs.mkdirSync(projectDir, { recursive: true });
     }
+
+    // Download template from Vercel Blob
+    const templatePath = `templates/${project.platform.toLowerCase()}/${project.loader.toLowerCase()}/${project.minecraftVersion}`;
+    const templateFiles = await downloadTemplateFromBlob(templatePath);
+    
+    // Save template files to project directory
+    await saveFilesToLocal(templateFiles, projectDir);
 
     // Get GitHub access token from session
     const githubToken = (session as any).githubAccessToken;
@@ -263,7 +296,6 @@ hs_err_pid*
       { 
         success: false,
         error: error instanceof Error ? error.message : "Failed to process download",
-        // Use projectId if available, otherwise try to use the one from body
         downloadUrl: projectId ? `/api/user/generator/download-zip?projectId=${projectId}` : null,
         fallback: "You can download the project from the files section"
       },

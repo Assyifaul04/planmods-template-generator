@@ -2,8 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { put } from '@vercel/blob';
 import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
@@ -43,25 +42,30 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const extension = file.name.split(".").pop();
     const filename = `${randomUUID()}.${extension}`;
-    const uploadDir = path.join(process.cwd(), "public", "images", folder);
-    const filePath = path.join(uploadDir, filename);
+    const blobPathname = `images/${folder}/${filename}`;
 
-    // Create directory if it doesn't exist
-    await mkdir(uploadDir, { recursive: true });
-
-    // Convert file to buffer and save
+    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+
+    // Upload to Vercel Blob
+    const blob = await put(
+      blobPathname,
+      buffer,
+      {
+        access: 'public',
+        contentType: file.type,
+        addRandomSuffix: false,
+      }
+    );
 
     // Return the URL
-    const url = `/images/${folder}/${filename}`;
-    
     return NextResponse.json({
-      url,
+      url: blob.url,
       filename,
       size: file.size,
       type: file.type,
+      blobPath: blobPathname,
     });
   } catch (error) {
     console.error("Error uploading file:", error);
